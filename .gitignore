@@ -1,0 +1,6 @@
+# cache file for macOS
+.DS_Store
+# generated simulation files
+.tmp_sim
+# python cache files
+__pycache__

@@ -1,0 +1,5 @@
+clk_gen.v
+../main/
+
+SIM_FLAGS += -DEFINE MAX_DELAY
+SYN_FLAGS += -NO_BOUNDARY_OPT

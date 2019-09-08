@@ -1,0 +1,6 @@
+COV_FLAGS=-DEFINE NO_ASSUME -NO_WARN PSEFM
+SIM_FLAGS=-DEFINE FULLSDATA
+
+tb.sv
+../src_dir1/
+../src_dir2/

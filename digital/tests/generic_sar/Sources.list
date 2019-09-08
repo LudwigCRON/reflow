@@ -1,0 +1,10 @@
+tb.sv
+sar.v
+sar_analog.sv
+sar_reconstruction.v
+./generic
+
+COV_MODULES=sar
+IP_MODULES=port
+COV_FLAGS=-DEFINE COVERAGE -NOWARN PSEFM
+SIM_FLAGS=-DEFINE FOR_SIMULATION

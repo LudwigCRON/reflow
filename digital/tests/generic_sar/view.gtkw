@@ -1,0 +1,60 @@
+[*]
+[*] GTKWave Analyzer v3.3.100 (w)1999-2019 BSI
+[*] Fri May  3 16:36:42 2019
+[*]
+[dumpfile] "/Users/ludwigcron/Documents/Projets/generic_sar/tb.vcd"
+[dumpfile_mtime] "Fri May  3 16:35:35 2019"
+[dumpfile_size] 912558
+[savefile] "/Users/ludwigcron/Documents/Projets/generic_sar/view.gtkw"
+[timestart] 123000
+[size] 1056 762
+[pos] -1 -1
+*-17.909130 495000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] tb.
+[sst_width] 193
+[signals_width] 212
+[sst_expanded] 1
+[sst_vpaned_height] 223
+@28
+tb.vinp
+tb.vinm
+tb.vin
+tb.f100m_clk
+tb.sar_eoc
+tb.sar_soc
+tb.eoc
+tb.soc
+tb.err
+tb.warn
+@200
+-Analogue
+@8028
+tb.adc00_analogue.vcmp_p
+@20000
+-
+-
+@8028
+tb.adc00_analogue.vcmp_m
+@20000
+-
+-
+@28
+tb.ms_sar_clock
+tb.adc00_analogue.ms_sar_dh
+tb.adc00_analogue.ms_sar_dl
+tb.adc00_analogue.ms_sar_sample
+@200
+-Digital
+@28
+tb.adc00.comp
+@22
+tb.adc00_analogue.ms_sar_sw[9:0]
+tb.adc00_analogue.ms_sar_swb[9:0]
+tb.adc00.counter[3:0]
+@28
+tb.adc00.can_decrement
+tb.adc00.finishing
+@22
+tb.adc00.sar_code[9:0]
+[pattern_trace] 1
+[pattern_trace] 0
