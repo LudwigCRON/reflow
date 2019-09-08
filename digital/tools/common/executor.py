@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-import re
+
 import sys
 import shlex
 import subprocess
+import tools.common.utils as utils
 
-def sh_exec(cmd: str, log: str = None, MAX_TIMEOUT: int = 300):
+def sh_exec(cmd: str, log: str = None, mode: str = "w+", MAX_TIMEOUT: int = 300, SHOW_CMD: bool = False):
   """
   simplify code for executing shell command
   """
@@ -14,12 +15,12 @@ def sh_exec(cmd: str, log: str = None, MAX_TIMEOUT: int = 300):
     try:
       out, err = proc.communicate(timeout=MAX_TIMEOUT)
       if not log is None:
-        with open(log, "w+") as fp:
-          # remove color code of log.vh
-          _s = out.replace(b'\033', b'').decode('utf-8')
-          _s = _s.replace("[0m", "")
-          _s = re.sub(r"\[\d;\d{2}m", "", _s)
-          fp.write(_s)
+        with open(log, mode) as fp:
+          if SHOW_CMD:
+            fp.write(cmd+'\n')
+          # remove color code of log.vh amond other things
+          for line in utils.filter_stream(out):
+            fp.write(line+'\n')
       sys.stdout.write(out.decode('utf-8'))
     except (OSError, subprocess.CalledProcessError) as exception:
       print("Exception occured: ", str(exception))

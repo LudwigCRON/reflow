@@ -74,7 +74,7 @@ if __name__ == "__main__":
     raise Exception(f"{args.input} does not exist")
   # add the log package file
   dirpath = os.path.dirname(os.path.realpath(__file__))
-  log_inc = os.path.join(dirpath, "../packages/log.vh")
+  log_inc = os.path.join(dirpath, "../../packages/log.vh")
   print(log_inc, get_type(log_inc), sep=";")
   # store the list of files
   files, params = read_sources([args.input])
