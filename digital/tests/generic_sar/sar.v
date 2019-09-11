@@ -8,24 +8,24 @@ module sar #(
     parameter STEP_SIZE = 4
 ) (
     // global signal
-    input                  rstb,
-    input                  atpg,
-    input                  f100m_clk,
+    input  wire             rstb,
+    input  wire             atpg,
+    input  wire             f100m_clk,
     // adc_interface
-    input                  sar_soc,
-    output                 sar_eoc,
-    output                 sar_err,
-    output                 sar_warn,
-    output reg [NSTEP-1:0] sar_code,
+    input  wire             sar_soc,
+    output wire             sar_eoc,
+    output wire             sar_err,
+    output wire             sar_warn,
+    output reg  [NSTEP-1:0] sar_code,
     // from the analogue part
-    input                  ms_sar_dh,
-    input                  ms_sar_dl,
-    input                  ms_sar_rdy,
+    input  wire             ms_sar_dh,
+    input  wire             ms_sar_dl,
+    input  wire             ms_sar_rdy,
     // to the analogue part
-    output                 ms_sar_clock,
-    output reg             ms_sar_sample,
-    output reg [NSTEP-1:0] ms_sar_sw,
-    output     [NSTEP-1:0] ms_sar_swb
+    output wire             ms_sar_clock,
+    output reg              ms_sar_sample,
+    output reg  [NSTEP-1:0] ms_sar_sw,
+    output wire [NSTEP-1:0] ms_sar_swb
 );
 
 // toggle resync of SOC

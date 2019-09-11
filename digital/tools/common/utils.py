@@ -5,7 +5,7 @@ import re
 import os
 import sys
 
-def get_sources(src, out: str = None) -> tuple:
+def get_sources(src, out: str = None, prefix: str = "") -> tuple:
   """
   list only the files which corresponds to code
   """
@@ -23,7 +23,7 @@ def get_sources(src, out: str = None) -> tuple:
       if out is None:
         paths.append(path)
       else:
-        fp_src.write(path+'\n')
+        fp_src.write(prefix+path+'\n')
       mimes.append(mime)
     # parameter
     elif ":" in line:

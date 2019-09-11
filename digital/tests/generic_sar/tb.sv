@@ -32,17 +32,17 @@ end
 
 // reset generation
 initial begin
-    //`log_Note("Simulation initiated");
+    `log_Note("Simulation initiated");
     rstb = 1'b0;
-    # 50 rstb = 1'b1;
-    //`log_Warning("reset released");
+    #50 rstb = 1'b1;
+    `log_Warning("reset released");
 end
 
 always @(posedge f100m_clk) begin
     if(vin > 1.005) begin
         rstb <= 1'b0;
         #50;
-        //`log_Terminate;
+        `log_Terminate;
     end
 end
 
