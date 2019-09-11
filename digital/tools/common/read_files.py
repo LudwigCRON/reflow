@@ -3,6 +3,7 @@
 import os
 import sys
 import argparse
+import traceback
 from collections import defaultdict
 
 VERILOG_AMS = [".vams"]
@@ -183,7 +184,11 @@ if __name__ == "__main__":
         log_inc = os.path.join(dirpath, "../../packages/log.vh")
         print(log_inc, get_type(log_inc), sep=";")
     # store the list of files
-    graph = read_sources(args.input)
+    graph = {}
+    try:
+        graph = read_sources(args.input)
+    except Exception as e:
+        traceback.print_exc(file=sys.stderr)
     for node in graph:
         _t = get_type(node.name)
         if _t:
