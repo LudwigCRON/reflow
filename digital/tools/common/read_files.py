@@ -25,11 +25,16 @@ def get_path(path: str, base: str = "") -> str:
     p = path[1:]
     first_dir = p.split('/', 1)[0] if "/" in p else p
     # suppose it's absolute path on unix os
-    i = base.lower().find(first_dir.lower())
-    if i < 0:
-        return path
+    b = base.lower()
+    i = b.find(first_dir.lower())
+    if i >= 0:
+        return os.path.join(base[:i], path)
     # in digital platform
-    return os.path.join(base[:i], path)
+    platform = os.getenv("PLATFORM", "ganymede").lower()
+    i = b.find(platform)
+    if i >= 0:
+        return os.path.join(base[:i+len(platform)], "digital", path[1:])
+    return path
 
 def is_parameter(line: str) -> bool:
     return "=" in line
@@ -166,6 +171,9 @@ def read_sources(filepath: str, graph: dict = {}, depth: int = 0):
     # parse the file
     for line in _tmp:
         if line.strip():
+            # dedicated mod
+            if "@" in line:
+                line = line.split('@')[0]
             path = get_path(line.strip(), os.path.dirname(filepath))
             if not is_parameter(line):
                 # rules name is the file
