@@ -8,6 +8,7 @@ DIGTOOLS = $(DIGFLOW)/tools
 GENSYN   = $(DIGTOOLS)/yosys/yosys.py
 READER   = $(DIGTOOLS)/common/read_files.py
 SIMULATOR= $(DIGTOOLS)/iverilog/iverilog.py
+DESTREE  = $(DIGTOOLS)/common/design_tree.py
 
 # find python module in the flow
 export PYTHONPATH := $(DIGFLOW)
@@ -18,6 +19,9 @@ all: lint sim cov
 
 dbg:
 	${READER} -i '$(shell pwd)'
+
+tree:
+	${READER} -i '$(shell pwd)'| ${DESTREE}
 
 lint:
 	${READER} -i '$(shell pwd)' | ${SIMULATOR} --lint-only

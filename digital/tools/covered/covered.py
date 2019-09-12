@@ -4,7 +4,7 @@ import sys
 import logging
 import tools.common.utils as utils
 import tools.common.executor as executor
-from tools.common.read_files import get_type
+from tools.common.read_files import get_type, find_modules
 from mako.template import Template
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -23,6 +23,10 @@ if __name__ == "__main__":
     WAVE         = os.path.join(DEFAULT_TMPDIR, "run.vcd")
     # create the list of sources
     PARAMS, MIMES = utils.get_sources(utils.filter_stream(sys.stdin), SRCS, prefix="-v ")
+    # top module
+    top = PARAMS["TOP_MODULE"] if "TOP_MODULE" in PARAMS else "tb"
+    if os.path.isfile(top):
+        top, _, _ = find_modules(top)[0]
     # give the module to cover
     _t = PARAMS["COV_MODULES"][0] if "COV_MODULES" in PARAMS else "tb"
     # exclude (IP_MODULES -> -e)
@@ -41,7 +45,7 @@ if __name__ == "__main__":
     else:
         # running
         logging.info("[2/4] Running simulations")
-        executor.sh_exec(f"covered score -g 3 -ep -S -t {_t} -i tb.adc00 -f {SRCS} -vcd {WAVE} -o {COV_DATABASE}", COV_LOG, MAX_TIMEOUT=300, SHOW_CMD=True)
+        executor.sh_exec(f"covered score -g 3 -ep -S -t {top} -i {_t} -f {SRCS} -vcd {WAVE} -o {COV_DATABASE}", COV_LOG, MAX_TIMEOUT=300, SHOW_CMD=True)
         # scoring
         logging.info("[3/4] Merging")
         #executor.sh_exec(f"covered score -cdd {COV_DATABASE} -vcd {WAVE}", COV_LOG, "a+", MAX_TIMEOUT=240, SHOW_CMD=True)

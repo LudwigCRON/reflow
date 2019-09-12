@@ -4,7 +4,7 @@ sar_analog.sv
 sar_reconstruction.v
 ./generic
 
-COV_MODULES=sar
+COV_MODULES=tb.adc00
 IP_MODULES=port sar_analog
 COV_FLAGS=-DEFINE COVERAGE -NOWARN PSEFM
 SIM_FLAGS=-DEFINE FOR_SIMULATION

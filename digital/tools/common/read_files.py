@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import re
 import os
 import sys
 import argparse
@@ -79,20 +80,46 @@ def resolve_dependancies(node, resolved, unresolved) -> None:
 def find_modules(filepath: str) -> list:
     """
     list modules declared in the filepath
+    with their parameters and the input/output ports
     """
-    pass
+    ans = []
+    PATTERN = r"^(?!end)module\s*([\w\-]+)\s*(#*\([\w\s\=\-,\.\/\*]+\))?\s*(\([\w\s\-,\.\/\*]*\))?"
+    # ^(?!end)module : start with module but not endmodule
+    # \s*([\w\-]+)   : skip some spaces then get the name of the module
+    # \s*(#*\([\w\s\=\-,\.\/\*]+\))? : get the parameter bloc if it exist with comments // or /* */
+    # \s*(\([\w\s\-,\.\/\*]*\))?     : get the ports bloc with comments // or /* */
+    with open(filepath, "r+") as fp:
+        data = fp.read()
+        matches = re.finditer(PATTERN, data, re.DOTALL | re.MULTILINE)
+        for match in matches:
+            ans.append(match.groups())
+    return ans
 
 def find_instances(filepath: str) -> list:
     """
     list modules declared in the filepath
     """
-    pass
+    ans = []
+    PATTERN = r"(^(?!begin|module)[\w\-]+)\s+(?:#\(([\w\W ]+,)\))?\s*([\w\-]+)\s*\("
+    # filter the first group to not be module
+    with open(filepath, "r+") as fp:
+        matches = re.finditer(PATTERN, fp.read(), re.DOTALL | re.MULTILINE)
+        for match in matches:
+            grps = match.groups()
+            if not grps[0].lower().strip() in ["module", "define", "begin"]:
+                ans.append(grps)
+    return ans
 
-def find_ports(filepath: str) -> list:
+def find_includes(filepath: str) -> list:
     """
-    list inputs/outputs declared in the filepath 
+    list include declared in the filepath
     """
-    pass
+    ans = []
+    PATTERN = r"include[s]?\s*[\"\']([\w\/\\]+)[\"\']"
+    with open(filepath, "r+") as fp:
+        for line in fp.readlines():
+            ans.extend(re.findall(PATTERN, line))
+    return ans
 
 #==== mime-type of files ====
 def get_type(filepath: str) -> str:
@@ -197,4 +224,7 @@ if __name__ == "__main__":
     for node in graph:
         for key, value in node.params.items():
             print(f"{key}\t:\t{value}")
+    # define the top module
+    print(f"TOP_MODULE\t:\t'{graph[-1].name}'")
+
 
