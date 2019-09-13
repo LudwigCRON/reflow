@@ -9,7 +9,8 @@ from collections import defaultdict
 
 VERILOG_AMS = [".vams"]
 VERILOG = [".v", ".vh", ".va"]
-SYSTEM_VERILOG = [".sv", ".sva", ".svh"]
+SYSTEM_VERILOG = [".sv", ".svh"]
+ASSERTIONS = [".sva"]
 LIBERTY = [".lib"]
 
 #= help in parsing sources.list =
@@ -139,6 +140,8 @@ def get_type(filepath: str) -> str:
         return "LIBERTY"
     elif ext in VERILOG_AMS:
         return "VERILOG_AMS"
+    elif ext in ASSERTIONS:
+        return "ASSERT"
     return None
 
 #====== business logic ======

@@ -27,6 +27,7 @@ if __name__ == "__main__":
         fp.write(f+'\n')
     # add vh extension to verilog
     fp.write("-vlog_ext .v,.vp,.vh,.vs\n")
+    fp.write("-sysv_ext .sv,.svp,.svh,.svi,.sva\n")
     # add lookup directory
     dirs = list(set([os.path.dirname(f) for f in FILES]))
     for d in dirs:
@@ -38,8 +39,8 @@ if __name__ == "__main__":
   # estimate appropriate flags
   generation = "verilog-ams" if any(["AMS" in m for m in MIMES]) else \
                "2012" if any(["SYS" in m for m in MIMES]) else "2001"
-  assertions = "-gassertions" if any(["ASSERT" in m for m in MIMES]) else ""
+  assertions = "-assert -ial" if any(["ASSERT" in m for m in MIMES]) else ""
   simvision  = "-gui" if "view-sim" in sys.argv else ""
   # create the executable sim
   logging.info("[2/2] Running simulation")
-  executor.sh_exec(f"irun {simvision} -LICQUEUE -f {SRCS}", PARSER_LOG, MAX_TIMEOUT=300)
+  executor.sh_exec(f"irun -linedebug -clean {simvision} {assertions} -LICQUEUE -f {SRCS}", PARSER_LOG, MAX_TIMEOUT=300)

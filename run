@@ -1,3 +1,8 @@
 #!/usr/bin/env bash
 
-make -s -f ~/Applications/vlsi/flow/digital/Makefile "$@"
+if [ $1 = "-c" ]; then
+    make -s -f $( dirname "${BASH_SOURCE[0]}" )/digital/Makefile clean
+    make -s -f $( dirname "${BASH_SOURCE[0]}" )/digital/Makefile "${@:2}"
+else
+    make -s -f $( dirname "${BASH_SOURCE[0]}" )/digital/Makefile "$@"
+fi
