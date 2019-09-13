@@ -24,18 +24,38 @@ def get_path(path: str, base: str = "") -> str:
         return os.path.realpath(os.path.join(base, path))
     # otherwise absolute path on unix os or to digital platform
     p = path[1:]
-    first_dir = p.split('/', 1)[0] if "/" in p else p
+    first_dir = p.split('/', 1)[0] if "/" in p else p 
     # suppose it's absolute path on unix os
+    # find a common section between base and path
     b = base.lower()
     i = b.find(first_dir.lower())
     if i >= 0:
-        return os.path.join(base[:i], path)
+        return base[:i]
     # in digital platform
     platform = os.getenv("PLATFORM", "ganymede").lower()
     i = b.find(platform)
     if i >= 0:
-        return os.path.join(base[:i+len(platform)], "digital", path[1:])
+        return os.path.join(
+            base[:i+len(platform)],
+            "digital" if is_digital(base) else
+            "analog" if is_analog(base) else "mixed",
+            path[1:])
     return path
+
+def resolve_includes(files: list) -> list:
+    includes = []
+    # for each files which exist really
+    for file in files:
+        parent_dir = os.path.dirname(file)
+        if os.path.isfile(file) and parent_dir:
+            # iterate through include statement detected
+            for inc in find_includes(file):
+                # resolve the path and store it
+                includes.append(get_path('/'+inc, file))
+    # return the list of include to only
+    # have non redundante parent directory
+    includes = list(set(map(os.path.dirname, includes)))
+    return [i for i in includes if os.path.exists(i)]
 
 def is_parameter(line: str) -> bool:
     return "=" in line
@@ -121,7 +141,7 @@ def find_includes(filepath: str) -> list:
     list include declared in the filepath
     """
     ans = []
-    PATTERN = r"include[s]?\s*[\"\']([\w\/\\]+)[\"\']"
+    PATTERN = r"include[s]?\s*\"?([\w\/\\\.]+)"
     with open(filepath, "r+") as fp:
         for line in fp.readlines():
             ans.extend(re.findall(PATTERN, line))
@@ -143,6 +163,20 @@ def get_type(filepath: str) -> str:
     elif ext in ASSERTIONS:
         return "ASSERT"
     return None
+
+def is_digital(filepath: str) -> bool:
+    if not os.path.isfile(filepath):
+        return "digital" in filepath
+    _, ext = os.path.splitext(filepath)
+    return any([
+        ext in VERILOG,
+        ext in SYSTEM_VERILOG, 
+        ext in LIBERTY,
+        ext in VERILOG_AMS,
+        ext in ASSERTIONS])
+
+def is_analog(filepath: str) -> bool:
+    return False
 
 #====== business logic ======
 def check_source_exists(dirpath: str) -> bool:

@@ -4,6 +4,7 @@ import sys
 import logging
 import tools.common.utils as utils
 import tools.common.executor as executor
+from tools.common.read_files import resolve_includes
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
@@ -20,7 +21,13 @@ if __name__ == "__main__":
     SIM_LOG    = os.path.join(DEFAULT_TMPDIR, "sim.log")
     WAVE       = os.path.join(DEFAULT_TMPDIR, "run.vcd")
     # create the list of sources
-    PARAMS, MIMES = utils.get_sources(utils.filter_stream(sys.stdin), SRCS)
+    PARAMS, MIMES, FILES = utils.get_sources(utils.filter_stream(sys.stdin), None)
+    INCLUDE_DIRS = resolve_includes(FILES)
+    with open(SRCS, "w+") as fp:
+        for include_dir in INCLUDE_DIRS:
+            fp.write(f"+incdir+{include_dir}\n")
+        for file in FILES:
+            fp.write(file+"\n")
     # estimate appropriate flags
     generation = "verilog-ams" if any(["AMS" in m for m in MIMES]) else \
                 "2012" if any(["SYS" in m for m in MIMES]) else "2001"

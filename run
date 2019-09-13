@@ -2,7 +2,7 @@
 
 export REFLOW=$( dirname "${BASH_SOURCE[0]}" )
 
-if [ $1 = "-c" ]; then
+if [ "$1" = "-c" ]; then
     make -s -f ${REFLOW}/digital/Makefile clean
     make -s -f ${REFLOW}/digital/Makefile "${@:2}"
 else

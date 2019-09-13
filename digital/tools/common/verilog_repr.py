@@ -8,6 +8,8 @@ def evaluate(text: str):
     if number return the parsed number
     otherwise a text
     """
+    if not isinstance(text, str):
+        return text
     if all([c in "0123456789." for c in text]):
         return float(text)
     return text
