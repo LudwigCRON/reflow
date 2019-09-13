@@ -12,7 +12,7 @@ def sh_exec(cmd: str, log: str = None, mode: str = "w+", MAX_TIMEOUT: int = 300,
     try:
         proc = subprocess.Popen(shlex.split(cmd),
             stdout=subprocess.PIPE, 
-            stderr=subprocess.STDOUT)
+            stderr=subprocess.STDOUT, shell=True)
         if not log is None:
             with open(log, mode) as fp:
                 if SHOW_CMD:
@@ -20,8 +20,9 @@ def sh_exec(cmd: str, log: str = None, mode: str = "w+", MAX_TIMEOUT: int = 300,
                 for line in proc.stdout:
                     sys.stdout.write(line.decode('utf-8'))
                     # remove color code of log.vh amond other things
-                    for l in utils.filter_stream(line):
-                        fp.write(l+"\n")
+                    l = list(utils.filter_stream(line))
+                    if l:
+                        fp.write(l[0]+"\n")
         else:
             for line in proc.stdout:
                 sys.stdout.write(line.decode('utf-8'))

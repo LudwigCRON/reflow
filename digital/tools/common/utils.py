@@ -37,18 +37,27 @@ def get_sources(src, out: str = None, prefix: str = "") -> tuple:
         return params, mimes, paths
     return params, mimes
 
-def display_log(path: str):
+def display_log(path: str, SUMMARY: bool = False):
     """
     display log file given by path
     """
+    Warnings, Errors = 0, 0
     if not os.path.exists(path):
         return None
     with open(path, "r+") as fp:
         k = 0
         for k, l in enumerate(fp.readlines()):
-            print(l.strip())
+            if "Warning" in l:
+                Warnings += 1
+            elif "Error" in l:
+                Errors += 1
+            if not SUMMARY:
+                print(l.strip())
         if k == 0:
-            print("No Error Detected")
+            print("Log file is empty")
+        else:
+            color = 37 if Warnings+Errors == 0 else 31 if Warnings == 0 else 34
+            print(f"{27:c}[1;{color}mFound {Warnings} warnings and {Errors} errors{27:c}[0m")
 
 def _filter_color(i):
     PATTERN = r"\[\d?;?\d{1,2}m"
@@ -64,6 +73,8 @@ def filter_stream(i):
     """
     if isinstance(i, io.TextIOWrapper):
         lines = i
+    elif isinstance(i, str):
+        lines = i.split('\n')
     else:
         lines = i.split(b'\n')
     for line in lines:

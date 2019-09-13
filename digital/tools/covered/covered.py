@@ -20,7 +20,7 @@ if __name__ == "__main__":
     COV_REPORT   = os.path.join(DEFAULT_TMPDIR, "coverage.rpt")
     COV_LOG      = os.path.join(DEFAULT_TMPDIR, "coverage.log")
     SRCS         = os.path.join(DEFAULT_TMPDIR, "cov-srcs.list")
-    WAVE         = os.path.join(DEFAULT_TMPDIR, "run.vcd")
+    WAVE         = os.path.join(DEFAULT_TMPDIR, "run.lxt")
     # create the list of sources
     PARAMS, MIMES = utils.get_sources(utils.filter_stream(sys.stdin), SRCS, prefix="-v ")
     # top module
@@ -45,7 +45,7 @@ if __name__ == "__main__":
     else:
         # running
         logging.info("[2/4] Running simulations")
-        executor.sh_exec(f"covered score -g 3 -ep -S -t {top} -i {_t} -f {SRCS} -vcd {WAVE} -o {COV_DATABASE}", COV_LOG, MAX_TIMEOUT=300, SHOW_CMD=True)
+        executor.sh_exec(f"covered score -g 3 -ep -S -t {top} -i {top}.{_t} -f {SRCS} -lxt {WAVE} -o {COV_DATABASE}", COV_LOG, MAX_TIMEOUT=300, SHOW_CMD=True)
         # scoring
         logging.info("[3/4] Merging")
         #executor.sh_exec(f"covered score -cdd {COV_DATABASE} -vcd {WAVE}", COV_LOG, "a+", MAX_TIMEOUT=240, SHOW_CMD=True)
