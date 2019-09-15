@@ -1,21 +1,24 @@
-#WAVEVIEWER=open ~/Applications/vlsi/Scansion.app
-WAVEVIEWER=open $(HOME)/bin/reflow/gtkwave.app
+include $(CONFIG_PATH)
 
-CADTOOLS = $(HOME)/bin/reflow
-COVERAGE = $(DIGTOOLS)/covered/covered.py
+# define tools folder
 DIGFLOW  = $(REFLOW)/digital
+ANAFLOW  = $(REFLOW)/analog
+MIXFLOW  = $(REFLOW)/mixed
+# define where to find tools
 DIGTOOLS = $(DIGFLOW)/tools
-GENSYN   = $(DIGTOOLS)/yosys/yosys.py
+ANATOOLS = $(ANAFLOW)/tools
+MIXTOOLS = $(MIXFLOW)/tools
+# define digital tools according to the configuration
 READER   = $(DIGTOOLS)/common/read_files.py
-SIMULATOR= $(DIGTOOLS)/iverilog/iverilog.py
 DESTREE  = $(DIGTOOLS)/common/design_tree.py
-
+DIG_COVER= $(DIGTOOLS)/$(DIG_COVERAGE_TOOL)/$(DIG_COVERAGE_TOOL).py
+DIG_SYNTH= $(DIGTOOLS)/$(DIG_SYNTHESIS_TOOL)/$(DIG_SYNTHESIS_TOOL).py
+DIG_SIM  = $(DIGTOOLS)/$(DIG_SIMULATOR_TOOL)/$(DIG_SIMULATOR_TOOL).py
 # find python module in the flow
-export PYTHONPATH := $(DIGFLOW)
+export PYTHONPATH := $(DIGFLOW):$(ANAFLOW):$(MIXFLOW)
 export PATH := $(CADTOOLS)/yosys:$(PATH)
 export PATH := $(CADTOOLS)/covered-0.7.10/src:$(PATH)
 export PATH := /mnt/ed/ct/lnx/rh/53/64/INCISIVE15.20.051/tools/bin/:$(PATH)
-export PLATFORM := Ganymede
 
 .PHONY: check-reflow
 
@@ -33,22 +36,22 @@ tree:
 	${READER} -i '$(shell pwd)'| ${DESTREE}
 
 lint:
-	${READER} -i '$(shell pwd)' | ${SIMULATOR} --lint-only
+	${READER} -i '$(shell pwd)' | ${DIG_SIM} --lint-only
 
 sim:
-	${READER} -i '$(shell pwd)' | ${SIMULATOR}
+	${READER} -i '$(shell pwd)' | ${DIG_SIM}
 
 synth:
-	${READER} -i '$(shell pwd)' | ${GENSYN}
+	${READER} -i '$(shell pwd)' | ${DIG_SYNTH}
 
 cov: sim
-	${READER} -i '$(shell pwd)' | ${COVERAGE}
+	${READER} -i '$(shell pwd)' | ${DIG_COVER}
 
 view-cov:
-	${READER} -i '$(shell pwd)' | ${COVERAGE} --view
+	${READER} -i '$(shell pwd)' | ${DIG_COVER} --view
 
 view-sim:
-	$(WAVEVIEWER) '$(shell pwd)/.tmp_sim/run.vcd'
+	$(WAVEFORM_VIEWER) '$(shell pwd)/.tmp_sim/run.vcd'
 
 clean:
 	rm -rf '$(shell pwd)/.tmp_sim'

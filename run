@@ -1,7 +1,21 @@
 #!/usr/bin/env bash
 
+# define the path where is stored the flow
 export REFLOW=$( dirname "${BASH_SOURCE[0]}" )
 
+# load a local configuration if there is one
+# or the default configuration
+export LOCAL_FLOW_CONFIG=$(find $(pwd) -name *.config)
+export DEFAULT_CONFIG=$( dirname "${BASH_SOURCE[0]}" )/default.config 
+if [ ! -z "$LOCAL_FLOW_CONFIG" ]; then
+    echo "Loading local configuration..."
+    export CONFIG_PATH=${LOCAL_FLOW_CONFIG}
+else
+    echo "Loading default configuration..."
+    export CONFIG_PATH=${DEFAULT_CONFIG}
+fi
+
+# execute the rules asked by the user
 if [ "$1" = "-c" ]; then
     make -s -f ${REFLOW}/digital/Makefile clean
     make -s -f ${REFLOW}/digital/Makefile "${@:2}"
