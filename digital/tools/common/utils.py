@@ -56,8 +56,11 @@ def display_log(path: str, SUMMARY: bool = False):
         if k == 0:
             print("Log file is empty")
         else:
-            color = 37 if Warnings+Errors == 0 else 31 if Warnings == 0 else 34
-            print(f"{27:c}[1;{color}mFound {Warnings} warnings and {Errors} errors{27:c}[0m")
+            color = 32 if Errors == 0 else 31
+            if Warnings+Errors == 0:
+                print(f"{27:c}[1;37mSuccesful Operation(s){27:c}[0m")
+            else:
+                print(f"{27:c}[1;{color}mFound {Warnings} warning(s) and {Errors} error(s){27:c}[0m")
 
 def _filter_color(i):
     PATTERN = r"\[\d?;?\d{1,2}m"

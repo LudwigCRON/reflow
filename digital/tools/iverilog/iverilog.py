@@ -9,7 +9,8 @@ from tools.common.read_files import resolve_includes
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
 DEFAULT_TMPDIR = os.path.join(os.getcwd(), ".tmp_sim")
-TOOL_DIR = os.path.dirname(os.path.abspath(__file__))
+TOOL_DIR       = os.path.dirname(os.path.abspath(__file__))
+WAVE_FORMAT    = "vcd"
 
 def transform_flags(flags: str) -> str:
     flags = flags.strip()
@@ -27,7 +28,7 @@ if __name__ == "__main__":
     EXE        = os.path.join(DEFAULT_TMPDIR, "run.vvp")
     PARSER_LOG = os.path.join(DEFAULT_TMPDIR, "parser.log")
     SIM_LOG    = os.path.join(DEFAULT_TMPDIR, "sim.log")
-    WAVE       = os.path.join(DEFAULT_TMPDIR, "run.lxt")
+    WAVE       = os.path.join(DEFAULT_TMPDIR, f"run.{WAVE_FORMAT}")
     # create the list of sources
     PARAMS, MIMES, FILES = utils.get_sources(utils.filter_stream(sys.stdin), None)
     INCLUDE_DIRS = resolve_includes(FILES)
@@ -49,12 +50,12 @@ if __name__ == "__main__":
     # run the simulation
     if not "--lint-only" in sys.argv:
         logging.info("[3/3] Running simulation")
-        executor.sh_exec(f"vvp {EXE} -lxt", SIM_LOG, MAX_TIMEOUT=300)
+        executor.sh_exec(f"vvp {EXE} -{WAVE_FORMAT}", SIM_LOG, MAX_TIMEOUT=300)
         # move the dumpfile to TMPDIR
         if os.path.exists(WAVE):
             os.remove(WAVE)
-        if os.path.exists("./dump.lxt"):
-            os.rename("./dump.lxt", WAVE)
+        if os.path.exists(f"./dump.{WAVE_FORMAT}"):
+            os.rename(f"./dump.{WAVE_FORMAT}", WAVE)
     # linting files
     else:
         logging.info("[3/3] Linting files")

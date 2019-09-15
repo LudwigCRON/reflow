@@ -109,7 +109,7 @@ def find_modules(filepath: str) -> list:
     with their parameters and the input/output ports
     """
     ans = []
-    PATTERN = r"^(?!end)module\s*([\w\-]+)\s*(#*\([\w\s\=\-,\.\/\*]+\))?\s*(\([\w\s\-,\.\/\*]*\))?"
+    PATTERN = r"^(?!end)module\s*([\w\-]+)\s*(#*\([\w\.\(\), \n\/\*\=]+\))?\s*(\([\w\s\-,\.\/\*]*\))?"
     # ^(?!end)module : start with module but not endmodule
     # \s*([\w\-]+)   : skip some spaces then get the name of the module
     # \s*(#*\([\w\s\=\-,\.\/\*]+\))? : get the parameter bloc if it exist with comments // or /* */
@@ -126,7 +126,7 @@ def find_instances(filepath: str) -> list:
     list modules declared in the filepath
     """
     ans = []
-    PATTERN = r"(^(?!begin|module)[\w\-]+)\s+(?:#\(([\w\W ]+,)\))?\s*([\w\-]+)\s*\("
+    PATTERN = r"(^(?!begin|module)[\w\-]+)\s*(?:#\([\w\.\(\), \n\/\*]*\))?\s*([\w\-]+)\s*\("
     # filter the first group to not be module
     with open(filepath, "r+") as fp:
         matches = re.finditer(PATTERN, fp.read(), re.DOTALL | re.MULTILINE)

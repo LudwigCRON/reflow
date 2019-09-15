@@ -12,7 +12,7 @@ def sh_exec(cmd: str, log: str = None, mode: str = "w+", MAX_TIMEOUT: int = 300,
     try:
         proc = subprocess.Popen(shlex.split(cmd),
             stdout=subprocess.PIPE, 
-            stderr=subprocess.STDOUT, shell=True)
+            stderr=subprocess.STDOUT, shell=False)
         if not log is None:
             with open(log, mode) as fp:
                 if SHOW_CMD:

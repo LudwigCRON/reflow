@@ -21,7 +21,7 @@ wire [9:0]  ms_sar_swb;
 
 // dump all
 initial begin
-    $dumpvars( 0, tb );
+    $dumpvars;
 end
 
 // clock generation

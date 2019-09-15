@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import sys
+import shutil
 import logging
 import tools.common.utils as utils
 import tools.common.executor as executor
@@ -10,6 +11,10 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
 DEFAULT_TMPDIR = os.path.join(os.getcwd(), ".tmp_sim")
 TOOL_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# the tool is wrapped with a perl script
+# without shebang lines
+verilator = shutil.which("verilator")
 
 def transform_flags(flags: str) -> str:
     flags = flags.strip()
@@ -24,7 +29,7 @@ if __name__ == "__main__":
     # create temporary directory
     os.makedirs(DEFAULT_TMPDIR, exist_ok=True)
     SRCS       = os.path.join(DEFAULT_TMPDIR, "srcs.list")
-    EXE        = os.path.join(DEFAULT_TMPDIR, "run.vvp")
+    EXE        = os.path.join(DEFAULT_TMPDIR, "run.cpp")
     PARSER_LOG = os.path.join(DEFAULT_TMPDIR, "parser.log")
     SIM_LOG    = os.path.join(DEFAULT_TMPDIR, "sim.log")
     WAVE       = os.path.join(DEFAULT_TMPDIR, "run.vcd")
@@ -48,7 +53,7 @@ if __name__ == "__main__":
     # run the simulation
     if not "--lint-only" in sys.argv:
         logging.info("[3/3] Running simulation")
-        executor.sh_exec(f"verilator {assertions} --trace --threads -Wall -f {SRCS} -o run.out", PARSER_LOG, MAX_TIMEOUT=300)
+        executor.sh_exec(f"perl {verilator} {assertions} --vpi -cc --trace --threads 4 -O3 -Wall -f \"{SRCS}\" -exe {EXE}", PARSER_LOG, MAX_TIMEOUT=300)
         # move the dumpfile to TMPDIR
         if os.path.exists(WAVE):
             os.remove(WAVE)
@@ -57,5 +62,5 @@ if __name__ == "__main__":
     # linting files
     else:
         logging.info("[3/3] Linting files")
-        executor.sh_exec(f"verilator --lint-only -Wall -f \"{SRCS}\"", PARSER_LOG, MAX_TIMEOUT=30, SHOW_CMD=True)
+        executor.sh_exec(f"perl {verilator} --lint-only -Wall -f {SRCS}", PARSER_LOG, MAX_TIMEOUT=30, SHOW_CMD=True)
         utils.display_log(PARSER_LOG, SUMMARY=True)
