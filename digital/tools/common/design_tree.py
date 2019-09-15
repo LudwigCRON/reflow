@@ -27,15 +27,18 @@ if __name__ == "__main__":
             print(''.join(['-']*len(file)))
             for m in find_modules(f):
                 module = Module(m[0])
-                module.parse_parameters(m[1])
-                if m[1] and m[1].startswith("#"):
+                if len(m) > 2:
+                    module.parse_parameters(m[1])
                     module.parse_pins(m[2])
                 else:
                     module.parse_pins(m[1])
                 print(module)
             for i in find_instances(f):
-                instance = Instance(i[2], i[0])
-                instance.parse_parameters(i[1])
+                if len(i) > 2:
+                    instance = Instance(i[2], i[0])
+                    instance.parse_parameters(i[1])
+                else:
+                    instance = Instance(i[1], i[0])
                 print(instance)
             for include in find_includes(f):
                 print("H ", include)

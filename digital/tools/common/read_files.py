@@ -109,7 +109,7 @@ def find_modules(filepath: str) -> list:
     with their parameters and the input/output ports
     """
     ans = []
-    PATTERN = r"^(?!end)module\s*([\w\-]+)\s*(#*\([\w\.\(\), \n\/\*\=]+\))?\s*(\([\w\s\-,\.\/\*]*\))?"
+    PATTERN = r"^(?!end)module\s*([\w\-]+)\s*(?:#\(([\w\.\(\), \n\/\*\=]*)\))?\s*\(([\w\, \n\/\*\[\]:\-]*)\)"
     # ^(?!end)module : start with module but not endmodule
     # \s*([\w\-]+)   : skip some spaces then get the name of the module
     # \s*(#*\([\w\s\=\-,\.\/\*]+\))? : get the parameter bloc if it exist with comments // or /* */
@@ -146,6 +146,18 @@ def find_includes(filepath: str) -> list:
         for line in fp.readlines():
             ans.extend(re.findall(PATTERN, line))
     return ans
+
+def find_timescale(filepath: str):
+    """
+    find timescale and return the step and accuracy
+    """
+    ans = []
+    PATTERN = r"timescale\s*(?:([\d\.]+)\s*([umnpf]?s))\s*(?:\\|\/)(?:([\d\.]+)\s*([umnpf]?s))"
+    with open(filepath, "r+") as fp:
+        for line in fp.readlines():
+            ans.extend(re.findall(PATTERN, line))
+    return ans
+
 
 #==== mime-type of files ====
 def get_type(filepath: str) -> str:

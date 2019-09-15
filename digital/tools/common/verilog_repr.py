@@ -20,7 +20,7 @@ class Instance:
 
     def __init__(self, name, module_name):
         self.name = name if not name is None else ""
-        self.module_name = module_name if not name is None else ""
+        self.module_name = module_name if not module_name is None else ""
         self.params = {"unresolved": []}
     
     def parse_parameters(self, text: str):
@@ -40,7 +40,7 @@ class Instance:
                     self.params["unresolved"].append(evaluate(grps[0]))
 
     def __str__(self):
-        return f"I {self.name}: from module {len(self.module_name)} and {len(self.params)} parameters"
+        return f"I {self.name}: from module {self.module_name} and {len(self.params)-1} parameters"
 
 #====== Modules =======
 class Module:

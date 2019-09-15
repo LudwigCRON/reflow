@@ -20,24 +20,26 @@ end
 
 endmodule
 
-module toggle_resync_in (
+module toggle_resync_in #(
+  parameter DEPTH = 2
+) (
   input  rstb,
   input  clk,
   input  a,
   output o
 );
 
-reg [2:0] sync;
+reg [DEPTH-1:0] sync;
 
 always @(posedge clk or negedge rstb)
 begin
   if(!rstb)
     sync <= 2'b0;
   else
-    sync <= {sync[1:0], a};
+    sync <= {sync[DEPTH-2:0], a};
 end
 
-assign o = ^sync[2:1];
+assign o = sync[DEPTH-1] ^ sync[DEPTH-2];
 
 endmodule
 
