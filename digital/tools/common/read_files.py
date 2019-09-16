@@ -158,6 +158,21 @@ def find_timescale(filepath: str):
             ans.extend(re.findall(PATTERN, line))
     return ans
 
+def evaluate_time(num:str, unit:str) -> float:
+    """
+    parse the timescale or other time expressed in the format \d\s*[fpnum]?s
+    """
+    if isinstance(num, str):
+        n = float(''.join([c for c in num if c in "0123456789."]))
+    else:
+        n = num
+    unit = unit.strip().lower()
+    u = 1e-15 if unit == "fs" else \
+        1e-12 if unit == "ps" else \
+        1e-9  if unit == "ns" else \
+        1e-6  if unit == "us" else \
+        1e-3  if unit == "ms" else 1.0
+    return n*u
 
 #==== mime-type of files ====
 def get_type(filepath: str) -> str:
@@ -281,6 +296,18 @@ if __name__ == "__main__":
     for node in graph:
         for key, value in node.params.items():
             print(f"{key}\t:\t{value}")
+    # define the most accurate timescale define
+    min_ts = (1, "s", 1, "ms")
+    for node in graph:
+        ts = find_timescale(node.name) if is_digital(node.name) else []
+        if ts:
+            sn, su, rn, ru = ts[0]
+            min_ts = (sn, su, *min_ts[2:4]) if evaluate_time(sn, su) < evaluate_time(*min_ts[0:2]) else min_ts
+            min_ts = (*min_ts[0:2], rn, ru) if evaluate_time(rn, ru) < evaluate_time(*min_ts[2:4]) else min_ts
+    if evaluate_time(*min_ts[0:2]) == 1.0:
+        print("TIMESCALE\t:\t'1ns/1ns'")
+    else:
+        print(f"TIMESCALE\t:\t'{min_ts[0]}{min_ts[1]}/{min_ts[2]}{min_ts[3]}'")
     # define the top module
     print(f"TOP_MODULE\t:\t'{graph[-1].name}'")
 

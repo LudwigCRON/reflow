@@ -38,6 +38,8 @@ if __name__ == "__main__":
         if "SIM_FLAGS" in PARAMS:
             for flag in PARAMS["SIM_FLAGS"]:
                 fp.write(transform_flags(flag)+"\n")
+        if "TIMESCALE" in PARAMS:
+            fp.write(f"+timescale+{PARAMS['TIMESCALE']}\n")
         for file in FILES:
             fp.write(file+"\n")
     # estimate appropriate flags
