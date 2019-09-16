@@ -27,11 +27,11 @@ if __name__ == "__main__":
             print(''.join(['-']*len(file)))
             for m in find_modules(f):
                 module = Module(m[0])
-                if len(m) > 2:
+                if m[1]:
                     module.parse_parameters(m[1])
-                    module.parse_pins(m[2])
-                else:
-                    module.parse_pins(m[1])
+                module.parse_pins(m[2])
+                module.parse_parameters(m[-1])
+                module.parse_pins(m[-1])
                 print(module)
             for i in find_instances(f):
                 if len(i) > 2:

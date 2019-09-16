@@ -109,11 +109,17 @@ def find_modules(filepath: str) -> list:
     with their parameters and the input/output ports
     """
     ans = []
-    PATTERN = r"^(?!end)module\s*([\w\-]+)\s*(?:#\(([\w\.\(\), \n\/\*\=]*)\))?\s*\(([\w\, \n\/\*\[\]:\-]*)\)"
+    PATTERN = (r"^(?!end)module"
+               r"\s*([\w\-]+)"
+               r"\s*(#\((?:[\w\.\(\), \n\/\*\=]*)\))?"
+               r"\s*\(([\w\, \n\/\*\[\]:\-]*)\)"
+               r"(.*?)endmodule")
     # ^(?!end)module : start with module but not endmodule
     # \s*([\w\-]+)   : skip some spaces then get the name of the module
     # \s*(#*\([\w\s\=\-,\.\/\*]+\))? : get the parameter bloc if it exist with comments // or /* */
     # \s*(\([\w\s\-,\.\/\*]*\))?     : get the ports bloc with comments // or /* */
+    # (.*?)                          : get all in the module in a non gready way
+    # endmodule                      : should end with endmodule
     with open(filepath, "r+") as fp:
         data = fp.read()
         matches = re.finditer(PATTERN, data, re.DOTALL | re.MULTILINE)
@@ -229,41 +235,43 @@ def read_sources(filepath: str, graph: dict = {}, depth: int = 0):
         return graph[filepath], graph
     graph[filepath] = Node(filepath)
     no = graph[filepath]
-    # get lines in memory
-    with open(filepath, "r+") as fp:
-        _tmp = fp.readlines()
-    # parse the file
-    for line in _tmp:
-        if line.strip():
-            # dedicated mod
-            if "@" in line:
-                line = line.split('@')[0]
-            path = get_path(line.strip(), os.path.dirname(filepath))
-            if not is_parameter(line):
-                # rules name is the file
-                if is_rules(line):
-                    fp = line.split(':')[0]
-                    graph[fp] = Node(fp)
-                    no.addEdge(graph[fp])
-                # add the file
-                elif os.path.isfile(path):
-                    graph[path] = Node(path)
-                    no.addEdge(graph[path])
-                # is a directory
-                elif os.path.isdir(path) and check_source_exists(path):
-                    n, _ = read_sources(path, graph, depth+1)
-                    no.addEdge(n)
-            # add value to parameter
-            elif "+=" in line:
-                a, b = line.split('+=')
-                no.params[a.strip()].append(b.strip())
-            # update a parameter
-            elif "=" in line:
-                a, b = line.split('=')
-                no.params[a.strip()] = [b.strip()]
-    # if in recursion
-    if depth > 0:
-        return no, graph
+    # if the file is a sources.list
+    if filepath.endswith("Sources.list"):
+        # get lines in memory
+        with open(filepath, "r+") as fp:
+            _tmp = fp.readlines()
+        # parse the file
+        for line in _tmp:
+            if line.strip():
+                # dedicated mod
+                if "@" in line:
+                    line = line.split('@')[0]
+                path = get_path(line.strip(), os.path.dirname(filepath))
+                if not is_parameter(line):
+                    # rules name is the file
+                    if is_rules(line):
+                        fp = line.split(':')[0]
+                        graph[fp] = Node(fp)
+                        no.addEdge(graph[fp])
+                    # add the file
+                    elif os.path.isfile(path):
+                        graph[path] = Node(path)
+                        no.addEdge(graph[path])
+                    # is a directory
+                    elif os.path.isdir(path) and check_source_exists(path):
+                        n, _ = read_sources(path, graph, depth+1)
+                        no.addEdge(n)
+                # add value to parameter
+                elif "+=" in line:
+                    a, b = line.split('+=')
+                    no.params[a.strip()].append(b.strip())
+                # update a parameter
+                elif "=" in line:
+                    a, b = line.split('=')
+                    no.params[a.strip()] = [b.strip()]
+        # if in recursion
+        if depth > 0:
+            return no, graph
     # resolve dependancies
     resolved = []
     resolve_dependancies(no, resolved, [])
@@ -288,6 +296,7 @@ if __name__ == "__main__":
         graph = read_sources(args.input)
     except Exception as e:
         traceback.print_exc(file=sys.stderr)
+    # display the list of files and their mime-type
     for node in graph:
         _t = get_type(node.name)
         if _t:
