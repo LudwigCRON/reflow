@@ -6,8 +6,8 @@ proc; opt; fsm; opt; memory; opt
 techmap; opt
 
 # map to the techno
-dfflibmap -liberty ${techno}.lib
-abc -liberty ${techno}.lib
+dfflibmap -liberty ${techno}
+abc -liberty ${techno}
 
 # clean output
 clean

@@ -24,20 +24,17 @@ if __name__ == "__main__":
     PARAMS, MIMES, SRCS = utils.get_sources(utils.filter_stream(sys.stdin))
     with open(SYNTH_SCRIPT, "w+") as fp:
         for line in SRCS:
-        # ignored files
-        if any([ign in line for ign in IGNORED]):
-            pass
-        else:
-            # code file
-            mime = get_type(line)
-            if mime == "VERILOG":
-                fp.write(f"read_verilog {line}\n")
-            elif mime == "LIBERTY":
-                fp.write(f"read_liberty {line}\n")
+            # code files not ignored
+            if not any([ign in line for ign in IGNORED]):
+                mime = get_type(line)
+                if mime == "VERILOG":
+                    fp.write(f"read_verilog {line}\n")
+                elif mime == "LIBERTY":
+                    fp.write(f"read_liberty {line}\n")
     # get top of the hierarchy
     data = {
         "top_module": "sar",
-        "techno": "xt018",
+        "techno": os.getenv("TECH_LIB"),
         "netlist": "sar_after_synthesis"
     }
     # generate yosys script
