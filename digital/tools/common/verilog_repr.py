@@ -32,6 +32,9 @@ class Instance:
             return
         PATTERN_0 = r".([\w\-]+)\(([\w\-]+)\)"
         PATTERN_1 = r"([\w\-]+)"
+        if not "," in text and text.strip():
+            self.params[text.strip()] = None
+            return
         for token in text.split(','):
             # named mapping
             matches = re.finditer(PATTERN_0, token, re.DOTALL | re.MULTILINE)

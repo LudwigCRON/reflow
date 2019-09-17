@@ -34,11 +34,11 @@ if __name__ == "__main__":
                 module.parse_pins(m[-1])
                 print(module)
             for i in find_instances(f):
-                if len(i) > 2:
+                if i[1]:
                     instance = Instance(i[2], i[0])
                     instance.parse_parameters(i[1])
                 else:
-                    instance = Instance(i[1], i[0])
+                    instance = Instance(i[2], i[0])
                 print(instance)
             for include in find_includes(f):
                 print("H ", include)

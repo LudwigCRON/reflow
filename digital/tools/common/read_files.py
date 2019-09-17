@@ -109,11 +109,11 @@ def find_modules(filepath: str) -> list:
     with their parameters and the input/output ports
     """
     ans = []
-    PATTERN = (r"^(?!end)module"
+    PATTERN = (r"(?!end)module"
                r"\s*([\w\-]+)"
-               r"\s*(#\((?:[\w\.\(\), \n\/\*\=]*)\))?"
-               r"\s*\(([\w\, \n\/\*\[\]:\-]*)\)"
-               r"(.*?)endmodule")
+               r"\s*(#\((?:[\w\.\(\),':\r\t\n \/\*\=\-]*)\))?"
+               r"\s*(\([\w\.\(\),'~\r\t\n \/\*\=\-\+:\[\]]*\)|)"
+               r"([\w\W\n\t]*?)endmodule")
     # ^(?!end)module : start with module but not endmodule
     # \s*([\w\-]+)   : skip some spaces then get the name of the module
     # \s*(#*\([\w\s\=\-,\.\/\*]+\))? : get the parameter bloc if it exist with comments // or /* */
@@ -132,14 +132,18 @@ def find_instances(filepath: str) -> list:
     list modules declared in the filepath
     """
     ans = []
-    PATTERN = r"(^(?!begin|module)[\w\-]+)\s*(?:#\([\w\.\(\), \n\/\*]*\))?\s*([\w\-]+)\s*\("
+    PATTERN = (r"(^\s*[\w\-]+)"
+               r"\s+(?:#\(([\w\.\(\),\r\t\n \/\*\=\-\+:\[\]]*)\))?"
+               r"\s*([\w\-]+)\s*\("
+               r"([\w\.\(\)\r\t\n \/\*\=\-\+:\[\]~&|^.,'{}?]*)\);"
+               )
     # filter the first group to not be module
     with open(filepath, "r+") as fp:
         matches = re.finditer(PATTERN, fp.read(), re.DOTALL | re.MULTILINE)
         for match in matches:
             grps = match.groups()
-            if not grps[0].lower().strip() in ["module", "define", "begin"]:
-                ans.append(grps)
+            if not grps[0].lower().strip() in ["module", "define", "begin", "task", "function", "case", "endcase"]:
+                ans.append([g.strip() if not g is None else None for g in grps])
     return ans
 
 def find_includes(filepath: str) -> list:
@@ -147,7 +151,7 @@ def find_includes(filepath: str) -> list:
     list include declared in the filepath
     """
     ans = []
-    PATTERN = r"include[s]?\s*\"?([\w\/\\\.]+)"
+    PATTERN = r"`include[s]?\s*\"?([\w\/\\\.]+)"
     with open(filepath, "r+") as fp:
         for line in fp.readlines():
             ans.extend(re.findall(PATTERN, line))
