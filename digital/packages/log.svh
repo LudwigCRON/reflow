@@ -25,6 +25,7 @@ COLOR specifies the message color.
 
 module log_service;
   integer ERROR_COUNT = 0;
+  string __xstr__;
 
   initial begin
     $timeformat(-9, 1, " ns", 14);
@@ -52,10 +53,17 @@ endmodule
   $display("Error   : [%t] %s", $time, msg); \
   $write("%c[0m",27);
 
-`define log_InfoF(template, a)    log_Info($sformatf(template, a));
-`define log_NoteF(template, a)    log_Note($sformatf(template, a));
-`define log_WarningF(template, a) log_Warning($sformatf(template, a));
-`define log_ErrorF(template, a)   log_Error($sformatf(template, a));
+`define log_Fatal(msg) \
+  $write("%c[1;31m",27); \
+  $display("Fatal   : [%t] %s", $time, msg); \
+  $write("%c[0m",27);
+
+// use $sformat for compatibility since $sformat is 
+// not always supported
+`define log_InfoF(template, a)    $sformat(log_service.__xstr__, template, a);`log_Info(log_service.__xstr__);
+`define log_NoteF(template, a)    $sformat(log_service.__xstr__, template, a);`log_Note(log_service.__xstr__);
+`define log_WarningF(template, a) $sformat(log_service.__xstr__, template, a);`log_Warning(log_service.__xstr__);
+`define log_ErrorF(template, a)   $sformat(log_service.__xstr__, template, a);`log_Error(log_service.__xstr__);
 
 `define log_Terminate \
   $write("%c[1;37m",27); \

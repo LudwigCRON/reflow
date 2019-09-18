@@ -4,7 +4,7 @@ import sys
 import logging
 import tools.common.utils as utils
 import tools.common.executor as executor
-from tools.common.read_files import get_type, find_modules, find_instances
+from tools.common.read_sources import get_type, find_modules, find_instances
 from mako.template import Template
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)

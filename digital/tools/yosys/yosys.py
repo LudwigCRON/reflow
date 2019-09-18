@@ -2,9 +2,10 @@
 import os
 import sys
 import logging
+import argparse
 import tools.common.utils as utils
 import tools.common.executor as executor
-from tools.common.read_files import get_type
+from tools.common.read_sources import get_type
 from mako.template import Template
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -13,8 +14,15 @@ DEFAULT_TMPDIR = os.path.join(os.getcwd(), ".tmp_sim")
 TOOL_DIR = os.path.dirname(os.path.abspath(__file__))
 
 IGNORED = ["packages/log.vh"]
+EXTENSIONS = {
+    "verilog": "v",
+    "spice": "sp"
+}
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-f", "--format", help="exported file format", default="verilog")
+    cli_args = parser.parse_args()
     logging.info("[1/3] Listing files")
     # create temporary directory
     os.makedirs(DEFAULT_TMPDIR, exist_ok=True)
@@ -32,10 +40,12 @@ if __name__ == "__main__":
                 elif mime == "LIBERTY":
                     fp.write(f"read_liberty {line}\n")
     # get top of the hierarchy
+    ext = EXTENSIONS.get(cli_args.format)
     data = {
         "top_module": "sar",
         "techno": os.getenv("TECH_LIB"),
-        "netlist": "sar_after_synthesis"
+        "netlist": f"sar_after_synthesis.{ext}",
+        "format": cli_args.format
     }
     # generate yosys script
     logging.info("[2/3] Merging synthesis files")

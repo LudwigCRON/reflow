@@ -292,7 +292,7 @@ if __name__ == "__main__":
     # add the log package file
     if not args.no_logger:
         dirpath = os.path.dirname(os.path.realpath(__file__))
-        log_inc = os.path.join(dirpath, "../../packages/log.vh")
+        log_inc = os.path.join(dirpath, "../../packages/log.svh")
         print(log_inc, get_type(log_inc), sep=";")
     # store the list of files
     graph = {}
@@ -323,5 +323,3 @@ if __name__ == "__main__":
         print(f"TIMESCALE\t:\t'{min_ts[0]}{min_ts[1]}/{min_ts[2]}{min_ts[3]}'")
     # define the top module
     print(f"TOP_MODULE\t:\t'{graph[-1].name}'")
-
-

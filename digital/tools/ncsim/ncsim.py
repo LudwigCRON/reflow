@@ -4,7 +4,7 @@ import sys
 import logging
 import tools.common.utils as utils
 import tools.common.executor as executor
-from tools.common.read_files import resolve_includes
+from tools.common.read_sources import resolve_includes
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 

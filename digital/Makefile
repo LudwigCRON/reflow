@@ -9,7 +9,8 @@ DIGTOOLS = $(DIGFLOW)/tools
 ANATOOLS = $(ANAFLOW)/tools
 MIXTOOLS = $(MIXFLOW)/tools
 # define digital tools according to the configuration
-READER   = $(DIGTOOLS)/common/read_files.py
+BATCH    = $(DIGTOOLS)/common/read_batch.py
+READER   = $(DIGTOOLS)/common/read_sources.py
 DESTREE  = $(DIGTOOLS)/common/design_tree.py
 DIG_COVER= $(DIGTOOLS)/$(DIG_COVERAGE_TOOL)/$(DIG_COVERAGE_TOOL).py
 DIG_SYNTH= $(DIGTOOLS)/$(DIG_SYNTHESIS_TOOL)/$(DIG_SYNTHESIS_TOOL).py
@@ -41,8 +42,14 @@ lint:
 sim:
 	${READER} -i '$(shell pwd)' | ${DIG_SIM}
 
+batch-sim:
+	${BATCH} -i '$(shell pwd)' -s
+
 synth:
 	${READER} -i '$(shell pwd)' | ${DIG_SYNTH}
+
+synth-mix:
+	${READER} -i '$(shell pwd)' | ${DIG_SYNTH} -f spice
 
 cov: sim
 	${READER} -i '$(shell pwd)' | ${DIG_COVER}
