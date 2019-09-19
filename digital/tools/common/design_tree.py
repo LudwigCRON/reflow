@@ -1,19 +1,17 @@
 #!/usr/bin/env python3
 import os
 import sys
-import logging
+import tools.common.relog as log
 import tools.common.utils as utils
 import tools.common.executor as executor
 from tools.common.read_sources import get_type, find_modules, find_instances, find_includes
 from tools.common.verilog_repr import *
 
-logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-
 DEFAULT_TMPDIR = os.path.join(os.getcwd(), ".tmp_sim")
 TOOL_DIR = os.path.dirname(os.path.abspath(__file__))
 
 if __name__ == "__main__":
-    logging.info("[1/4] Listing files")
+    log.info("[1/4] Listing files")
     # create temporary directory
     os.makedirs(DEFAULT_TMPDIR, exist_ok=True)
     SRCS = os.path.join(DEFAULT_TMPDIR, "srcs.list")

@@ -18,6 +18,8 @@ def transform_flags(flags: str) -> str:
         flags = flags.replace("-DEFINE ", "+define+")
     if "-define " in flags:
         flags = flags.replace("-define ", "+define+")
+    if "-P" in flags:
+        flags = flags.replace("-P", "+parameter+")
     return flags
 
 if __name__ == "__main__":

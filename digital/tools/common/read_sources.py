@@ -267,11 +267,11 @@ def read_sources(filepath: str, graph: dict = {}, depth: int = 0):
                         no.addEdge(n)
                 # add value to parameter
                 elif "+=" in line:
-                    a, b = line.split('+=')
+                    a, b = line.split('+=', 1)
                     no.params[a.strip()].append(b.strip())
                 # update a parameter
                 elif "=" in line:
-                    a, b = line.split('=')
+                    a, b = line.split('=', 1)
                     no.params[a.strip()] = [b.strip()]
         # if in recursion
         if depth > 0:
