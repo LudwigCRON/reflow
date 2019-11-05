@@ -43,14 +43,15 @@ if __name__ == "__main__":
         if "TIMESCALE" in PARAMS:
             fp.write(f"+timescale+{PARAMS['TIMESCALE']}\n")
         for file in FILES:
-            fp.write(file+"\n")
+            if not file.endswith(".sva"):
+                fp.write(file+"\n")
     # estimate appropriate flags
     generation = "verilog-ams" if any(["AMS" in m for m in MIMES]) else \
                 "2012" if any(["SYS" in m for m in MIMES]) else "2001"
-    assertions = "-gassertions" if any(["ASSERT" in m for m in MIMES]) else ""
+    assertions = "-gassertions" if any(["ASSERT" in m for m in MIMES]) else "-gno-assertions"
     # create the executable sim
     logging.info("[2/3] Compiling files")
-    executor.sh_exec(f"iverilog -g{generation} {assertions} -Wall -o {EXE} -c {SRCS}", PARSER_LOG, MAX_TIMEOUT=20)
+    executor.sh_exec(f"iverilog -g{generation} -grelative-include {assertions} -Wall -o {EXE} -c {SRCS}", PARSER_LOG, MAX_TIMEOUT=20)
     # run the simulation
     if not "--lint-only" in sys.argv:
         logging.info("[3/3] Running simulation")

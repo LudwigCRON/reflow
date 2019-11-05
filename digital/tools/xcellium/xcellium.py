@@ -32,7 +32,10 @@ if __name__ == "__main__":
             fp.write(f"-incdir {include_dir}\n")
         # add files
         for file in FILES:
-            fp.write(file+"\n")
+            if not file.endswith("h"):
+                fp.write(file+"\n")
+            else:
+                fp.write(f"-incdir {os.path.dirname(file)}\n")
     # estimate appropriate flags
     generation = "verilog-ams" if any(["AMS" in m for m in MIMES]) else \
                  "2012" if any(["SYS" in m for m in MIMES]) else "2001"

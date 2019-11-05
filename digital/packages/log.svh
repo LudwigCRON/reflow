@@ -20,8 +20,6 @@ COLOR specifies the message color.
 
 */
 
-`timescale 1ps/1ps
-
 
 module log_service;
   integer ERROR_COUNT = 0;
@@ -58,7 +56,7 @@ endmodule
   $display("Fatal   : [%t] %s", $time, msg); \
   $write("%c[0m",27);
 
-// use $sformat for compatibility since $sformat is 
+// use $sformat for compatibility since $sformat is
 // not always supported
 `define log_InfoF(template, a)    $sformat(log_service.__xstr__, template, a);`log_Info(log_service.__xstr__);
 `define log_NoteF(template, a)    $sformat(log_service.__xstr__, template, a);`log_Note(log_service.__xstr__);

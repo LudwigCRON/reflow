@@ -20,6 +20,7 @@ export PYTHONPATH := $(DIGFLOW):$(ANAFLOW):$(MIXFLOW)
 export PATH := $(CADTOOLS)/yosys:$(PATH)
 export PATH := $(CADTOOLS)/covered-0.7.10/src:$(PATH)
 export PATH := /mnt/ed/ct/lnx/rh/53/64/INCISIVE15.20.051/tools/bin/:$(PATH)
+export PATH := /mnt/ed/ct/lnx/rh/53/64/XCELIUMMAIN19.03.010/tools/bin/:$(PATH)
 
 .PHONY: check-reflow
 
