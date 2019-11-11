@@ -291,8 +291,7 @@ if __name__ == "__main__":
         raise Exception(f"{args.input} does not exist")
     # add the log package file
     if not args.no_logger:
-        dirpath = os.path.dirname(os.path.realpath(__file__))
-        log_inc = os.path.join(dirpath, "../../packages/log.svh")
+        log_inc = os.path.join(os.environ["REFLOW"], "digital/packages/log.svh")
         print(log_inc, get_type(log_inc), sep=";")
     # store the list of files
     graph = {}

@@ -46,6 +46,9 @@ sim:
 batch-sim:
 	${BATCH} -i '$(shell pwd)' -s
 
+batch-cov:
+	${BATCH} -i '$(shell pwd)' -c
+
 synth:
 	${READER} -i '$(shell pwd)' | ${DIG_SYNTH}
 
