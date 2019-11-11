@@ -43,7 +43,7 @@ if __name__ == "__main__":
         top, _, _, _ = find_modules(PARAMS["TOP_MODULE"])[0]
     # give the module to cover
     modules = PARAMS["COV_MODULES"][0].split(' ') if "COV_MODULES" in PARAMS else [top]
-    instances = [(module, instance) for module, instance in instances if module in modules]
+    instances = [(module, instance) for module, params, instance, ports in instances if module in modules]
     # scoring
     logging.info("[2/4] Scoring simulations")
     if len(instances) > 1:
@@ -52,7 +52,7 @@ if __name__ == "__main__":
             COV_K_DATABASE = COV_DATABASE.replace('.cdd', f"_{k}.cdd")
             executor.sh_exec(f"covered score -t {module} -i {top}.{instance} -f {SRCS} -g {generation} -o {COV_K_DATABASE}", COV_LOG, mode="a+", MAX_TIMEOUT=300, SHOW_CMD=True)
     else:
-        executor.sh_exec(f"covered score -t {top} -f {SRCS} -g {generation} -o {COV_DATABASE}", COV_LOG, mode="a+", MAX_TIMEOUT=300, SHOW_CMD=True)
+        executor.sh_exec(f"covered score -t {top} -i {top}.{instances[0][1]} -f {SRCS} -g {generation} -o {COV_DATABASE}", COV_LOG, mode="a+", MAX_TIMEOUT=300, SHOW_CMD=True)
     # mergin
     logging.info("[3/4] Merging")
     if len(instances) > 1:
