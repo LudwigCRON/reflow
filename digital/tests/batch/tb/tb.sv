@@ -5,7 +5,7 @@ module tb;
 
 parameter PERIOD = 31.25; // 32 MHz
 
-string s;
+reg s;
 real clk_period;
 reg clk;
 

@@ -107,7 +107,7 @@ if __name__ == "__main__":
     parser.add_argument("-nl", "--no-logger", action="store_true", help="already include logger macro")
     args = parser.parse_args()
     # parser for config file
-    batch = configparser.SafeConfigParser(
+    batch = configparser.ConfigParser(
         allow_no_value=True, 
         strict=True, 
         empty_lines_in_values=False,

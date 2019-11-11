@@ -27,6 +27,7 @@ if __name__ == "__main__":
     INCLUDE_DIRS = resolve_includes(FILES)
     instances = find_instances(PARAMS["TOP_MODULE"])
     excludes = PARAMS["IP_MODULES"][0].split(' ') if "IP_MODULES" in PARAMS else []
+    generation = 3 if any(["SYS" in m for m in MIMES]) else 2
     with open(SRCS, "w+") as fp:
         for include_dir in INCLUDE_DIRS:
             fp.write(f"-I {include_dir}\n")
@@ -34,6 +35,8 @@ if __name__ == "__main__":
             fp.write(f"-v {file}\n")
         for module in excludes:
             fp.write(f"-e {module}\n")
+        fp.write(f"-{WAVE_FORMAT} {WAVE}\n")
+        fp.write("-Wignore\n")
     # top module
     top = "tb"
     if os.path.isfile(PARAMS["TOP_MODULE"]):
@@ -42,14 +45,14 @@ if __name__ == "__main__":
     modules = PARAMS["COV_MODULES"][0].split(' ') if "COV_MODULES" in PARAMS else [top]
     instances = [(module, instance) for module, instance in instances if module in modules]
     # scoring
-    logging.info("[2/4] Running simulations")
+    logging.info("[2/4] Scoring simulations")
     if len(instances) > 1:
         for k, i in enumerate(instances):
             module, instance = i
             COV_K_DATABASE = COV_DATABASE.replace('.cdd', f"_{k}.cdd")
-            executor.sh_exec(f"covered score -t {module} -i {top}.{instance} -f {SRCS} -{WAVE_FORMAT} {WAVE} -o {COV_K_DATABASE}", COV_LOG, mode="a+", MAX_TIMEOUT=300, SHOW_CMD=True)
+            executor.sh_exec(f"covered score -t {module} -i {top}.{instance} -f {SRCS} -g {generation} -o {COV_K_DATABASE}", COV_LOG, mode="a+", MAX_TIMEOUT=300, SHOW_CMD=True)
     else:
-        executor.sh_exec(f"covered score -t {top} -f {SRCS} -{WAVE_FORMAT} {WAVE} -o {COV_DATABASE}", COV_LOG, mode="a+", MAX_TIMEOUT=300, SHOW_CMD=True)
+        executor.sh_exec(f"covered score -t {top} -f {SRCS} -g {generation} -o {COV_DATABASE}", COV_LOG, mode="a+", MAX_TIMEOUT=300, SHOW_CMD=True)
     # mergin
     logging.info("[3/4] Merging")
     if len(instances) > 1:

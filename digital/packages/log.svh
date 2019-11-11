@@ -19,7 +19,7 @@ COLOR specifies the message color.
 37 set white foreground
 
 */
-
+`timescale 1ns/100ps
 
 module log_service;
   integer ERROR_COUNT = 0;
