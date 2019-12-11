@@ -22,6 +22,7 @@ EXTENSIONS = {
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-f", "--format", help="exported file format", default="verilog")
+    parser.add_argument("-t", "--top", help="top module", default="sar")
     cli_args = parser.parse_args()
     logging.info("[1/3] Listing files")
     # create temporary directory
@@ -42,9 +43,9 @@ if __name__ == "__main__":
     # get top of the hierarchy
     ext = EXTENSIONS.get(cli_args.format)
     data = {
-        "top_module": "sar",
+        "top_module": cli_args.top,
         "techno": os.getenv("TECH_LIB"),
-        "netlist": f"sar_after_synthesis.{ext}",
+        "netlist": f"{cli_args.top}_after_synthesis.{ext}",
         "format": cli_args.format
     }
     # generate yosys script

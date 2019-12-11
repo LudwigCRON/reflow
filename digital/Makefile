@@ -50,10 +50,10 @@ batch-cov:
 	${BATCH} -i '$(shell pwd)' -c
 
 synth:
-	${READER} -i '$(shell pwd)' | ${DIG_SYNTH}
+	${READER} -i '$(shell pwd)' | ${DIG_SYNTH} -t $(top)
 
 synth-mix:
-	${READER} -i '$(shell pwd)' | ${DIG_SYNTH} -f spice
+	${READER} -i '$(shell pwd)' | ${DIG_SYNTH} -t $(top) -f spice
 
 cov: sim
 	${READER} -i '$(shell pwd)' | ${DIG_COVER}
