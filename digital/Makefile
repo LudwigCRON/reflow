@@ -4,14 +4,16 @@ include $(CONFIG_PATH)
 DIGFLOW  = $(REFLOW)/digital
 ANAFLOW  = $(REFLOW)/analog
 MIXFLOW  = $(REFLOW)/mixed
+COMMON   = $(REFLOW)/common
 # define where to find tools
 DIGTOOLS = $(DIGFLOW)/tools
 ANATOOLS = $(ANAFLOW)/tools
 MIXTOOLS = $(MIXFLOW)/tools
+# define generic tools
+BATCH    = $(COMMON)/read_batch.py
+READER   = $(COMMON)/read_sources.py
+DESTREE  = $(COMMON)/design_tree.py
 # define digital tools according to the configuration
-BATCH    = $(DIGTOOLS)/common/read_batch.py
-READER   = $(DIGTOOLS)/common/read_sources.py
-DESTREE  = $(DIGTOOLS)/common/design_tree.py
 DIG_COVER= $(DIGTOOLS)/$(DIG_COVERAGE_TOOL)/$(DIG_COVERAGE_TOOL).py
 DIG_SYNTH= $(DIGTOOLS)/$(DIG_SYNTHESIS_TOOL)/$(DIG_SYNTHESIS_TOOL).py
 DIG_SIM  = $(DIGTOOLS)/$(DIG_SIMULATOR_TOOL)/$(DIG_SIMULATOR_TOOL).py

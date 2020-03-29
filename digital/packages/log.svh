@@ -41,7 +41,7 @@ endmodule
   $write("%c[0m",27);
 
 `define log_Warning(msg) \
-  $write("%c[1;34m",27); \
+  $write("%c[1;33m",27); \
   $display("Warning : [%t] %s", $time, msg); \
   $write("%c[0m",27);
 
