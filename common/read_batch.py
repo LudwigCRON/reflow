@@ -101,13 +101,7 @@ def parse_rule(text: str) -> tuple:
     return (folder, lbl, SimType.ALL)
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Process some integers.')
-    parser.add_argument("-i", "--input", type=str, help="list of input files")
-    parser.add_argument("-s", "--sim", action="store_true", help="select only simulation")
-    parser.add_argument("-c", "--cov", action="store_true", help="select only coverage")
-    parser.add_argument("-nl", "--no-logger", action="store_true", help="already include logger macro")
-    args = parser.parse_args()
+def read_config(batch_file: str):
     # parser for config file
     batch = configparser.ConfigParser(
         allow_no_value=True,
@@ -119,13 +113,13 @@ if __name__ == "__main__":
     # override section regex
     batch.SECTCRE = re.compile(r"[ \t]*(?P<header>[^:]+?)[ \t]*:")
     # check input exist
-    if not os.path.exists(args.input):
-        raise Exception("%s does not exist" % args.input)
+    if not os.path.exists(batch_file):
+        raise Exception("%s does not exist" % batch_file)
     # get batch description file path
-    if os.path.isdir(args.input):
-        filepath = os.path.join(args.input, "Batch.list")
+    if os.path.isdir(batch_file):
+        filepath = os.path.join(batch_file, "Batch.list")
     else:
-        filepath = args.input
+        filepath = batch_file
     # parse the batch file
     try:
         batch.read([filepath])
@@ -133,16 +127,19 @@ if __name__ == "__main__":
         relog.error((
             "batch cannot accept duplicate rules\n\t"
             "consider apply a label 'folder > label [@SIM_TYPE]:' to %s" % dse.section))
-
     normalize_config(batch)
+    return batch
+
+
+def run(cwd, batch, sim_only: bool = False, cov_only: bool = False):
     N = len(batch.sections())
     # create directory for simulation
     for k, rule in enumerate(batch):
         if batch.has_option(rule, "__path__"):
             relog.info(f"[{k}/{N}] Run simulation {rule}")
-            p = os.path.join(args.input, batch.get(rule, "__path__"))
+            p = os.path.join(cwd, batch.get(rule, "__path__"))
             s = eval(batch.get(rule, "__sim_type__"))
-            o = os.path.join(args.input, f".tmp_sim/{rule}")
+            o = os.path.join(cwd, f".tmp_sim/{rule}")
             l = os.path.join(o, "Sources.list")
             os.makedirs(o, exist_ok=True)
             # create the Sources.list
@@ -157,7 +154,26 @@ if __name__ == "__main__":
                         else:
                             fp.write(f"{option}={values}\n")
             # run the simulation
-            if args.sim and s in [SimType.SIMULATION, SimType.ALL]:
+            if sim_only and s in [SimType.SIMULATION, SimType.ALL]:
                 executor.sh_exec("run -c sim", CWD=o)
-            elif args.cov and s == s in [SimType.COVERAGE, SimType.ALL]:
+            elif cov_only and s in [SimType.COVERAGE, SimType.ALL]:
                 executor.sh_exec("run -c cov", CWD=o)
+
+
+def main(cwd, sim_only: bool = False, cov_only: bool = False):
+    batch = read_config(cwd)
+    if batch:
+        run(cwd, batch, sim_only=sim_only, cov_only=cov_only)
+    else:
+        relog.error("No Batch.list file found")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Process some integers.')
+    parser.add_argument("-i", "--input", type=str, help="list of input files")
+    parser.add_argument("-s", "--sim", default=False, action="store_true", help="select only simulation")
+    parser.add_argument("-c", "--cov", default=False, action="store_true", help="select only coverage")
+    parser.add_argument("-nl", "--no-logger", action="store_true", help="already include logger macro")
+    args = parser.parse_args()
+    # read batch description file
+    main(args.input, args.sim, args.cov)

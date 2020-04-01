@@ -282,7 +282,7 @@ def read_from(sources_list: str, no_logger: bool = False, no_stdout: bool = True
                 min_ts = (*min_ts[0:2], rn, ru)
     if evaluate_time(*min_ts[0:2]) == 1.0:
         print("TIMESCALE\t:\t'1ns/100ps'")
-        parameters["TIMESCALE"] = "1ns/100ps" % min_ts
+        parameters["TIMESCALE"] = "1ns/100ps"
     else:
         print("TIMESCALE\t:\t'%s%s/%s%s'" % min_ts)
         parameters["TIMESCALE"] = "%s%s/%s%s" % min_ts

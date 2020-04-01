@@ -20,7 +20,9 @@ sys.path.append(REFLOW_DIR)
 
 import common.utils as utils
 import common.relog as relog
-import common.read_sources as reader
+import common.read_sources as read_sources
+import common.design_tree as design_tree
+import common.read_batch as read_batch
 
 # load a local configuration if there is one
 local_config = None
@@ -32,18 +34,22 @@ default_config = os.path.join(REFLOW_DIR, "./default.config")
 # export environment variables
 os.environ["REFLOW"] = REFLOW_DIR
 os.environ["DEFAULT_CONFIG"] = default_config
-os.environ["LOCAL_FLOW_CONFIG"] = local_config
+os.environ["LOCAL_FLOW_CONFIG"] = "" if local_config is None else local_config
 os.environ["CONFIG_PATH"] = default_config if local_config is None else local_config
 
 if __name__ == "__main__":
     # signal handling (kill, ctrl+c, ...)
     make_process = None
+
     def stop_process():
         if make_process is not None:
             make_process.kill()
+
     signal.signal(signal.SIGINT, stop_process)
     # parse command line arguments
     margs = {
+        "clean": "clean working directory",
+        "batch": "perform a list of simulations Batch.list",
         "sim": "run a simulation",
         "cov": "run a coverage simulation",
         "lint": "apply lint checks on a design",
@@ -53,34 +59,60 @@ if __name__ == "__main__":
         "synth": "synthesize a design"
     }
     arguments = ["--%s" % arg if arg in margs.keys() else arg for arg in sys.argv[1:]]
-    parser = argparse.ArgumentParser(description="Reflow Unified ruNner")
+    parser = argparse.ArgumentParser(
+        description=(
+            "Reflow Unified ruNner\n"
+            "---------------------\n"
+            "\n"
+            "For arguments starting with by double dash --,"
+            "the double dashes can be omitted."
+            "\n"
+            "ex: 'run sim' is equal to 'run --sim'\n"
+        ),
+        formatter_class=argparse.RawTextHelpFormatter
+    )
     parser.add_argument("-c", "--clean",
                         help="clean working directory", action="store_true", default=False)
+    parser.add_argument("-b", "--batch",
+                        help="perform a list of simulations Batch.list", action="store_true", default=False)
+    group = parser.add_mutually_exclusive_group()
     for key, desc in margs.items():
-        parser.add_argument("--%s" % key, help=desc, action="store_true", default=False)
+        if key not in ["clean", "batch"]:
+            group.add_argument("--%s" % key, help=desc, action="store_true", default=False)
     args = parser.parse_args(arguments)
+    # if not arguments is provided print help
+    if not any(dict(args._get_kwargs()).values()):
+        parser.print_help()
     # load the configuration
     config = utils.read_config(os.environ["CONFIG_PATH"])
-    os.environ["TECH_LIB"] = config["TECH_LIB"]
+    os.environ["TECH_LIB"] = config.get("TECH_LIB", "")
     # clean tmp files
     if args.clean:
         for work_dir in Path(CURRENT_DIR).rglob("**/.tmp_sim"):
-            print(work_dir)
             shutil.rmtree(work_dir)
+    # perform a collection of simulation
+    if args.batch:
+        read_batch.main(CURRENT_DIR, args.sim, args.cov)
+        exit(0)
     # check lint error on the design
     if args.lint:
         relog.step("Listing files")
-        files, params = reader.read_from(CURRENT_DIR)
+        files, params = read_sources.read_from(CURRENT_DIR)
         # load the simulator script
         tool_path = utils.find_tool(config["DIG_SIMULATOR_TOOL"])
         sys.path.append(os.path.dirname(tool_path))
         linter = import_module(config["DIG_SIMULATOR_TOOL"])
         # execute
         linter.main(files, params, lint=True)
+    # display hierarchy of the design
+    if args.tree:
+        relog.step("Listing files")
+        files, params = read_sources.read_from(CURRENT_DIR)
+        design_tree.main(files, params)
     # run a simulation
     if args.sim:
         relog.step("Listing files")
-        files, params = reader.read_from(CURRENT_DIR)
+        files, params = read_sources.read_from(CURRENT_DIR)
         # load the simulator script
         tool_path = utils.find_tool(config["DIG_SIMULATOR_TOOL"])
         sys.path.append(os.path.dirname(tool_path))
@@ -98,7 +130,7 @@ if __name__ == "__main__":
     # synthesis
     if args.synth:
         relog.step("Listing files")
-        files, params = reader.read_from(CURRENT_DIR)
+        files, params = read_sources.read_from(CURRENT_DIR)
         # load the simulator script
         tool_path = utils.find_tool(config["DIG_SYNTHESIS_TOOL"])
         sys.path.append(os.path.dirname(tool_path))
