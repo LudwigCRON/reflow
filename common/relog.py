@@ -93,6 +93,24 @@ def display_log(path: str, SUMMARY: bool = False):
                 error("Found %d warning(s) and %d error(s)" % (Warnings, Errors))
 
 
+def get_stats(path: str):
+    """
+    return stats from log file of simulations
+    Number of warnings
+    Number of errors
+    """
+    Warnings, Errors = 0, 0
+    if not os.path.exists(path):
+        return None
+    with open(path, "r+") as fp:
+        k = 0
+        for k, l in enumerate(fp.readlines()):
+            if "Warning" in l:
+                Warnings += 1
+            elif "Error" in l:
+                Errors += 1
+    return Warnings, Errors
+
 # ==== filters ====
 def _filter_color(i):
     PATTERN = r"\[\d?;?\d{1,2}m"

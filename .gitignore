@@ -2,5 +2,8 @@
 .DS_Store
 # generated simulation files
 .tmp_sim
+.tmp_cov
+.tmp_lint
+.tmp_batch
 # python cache files
 __pycache__

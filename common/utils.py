@@ -29,7 +29,9 @@ def find_tool(name: str):
 
 
 def get_tmp_folder():
-    return os.path.join(os.getcwd(), ".tmp_sim")
+    if "WORK_DIR" in os.environ:
+        return os.path.normpath(os.environ["WORK_DIR"])
+    return os.path.normpath(os.path.join(os.getcwd(), ".tmp_sim"))
 
 
 def get_sources(src, out: str = None, prefix: str = "") -> tuple:

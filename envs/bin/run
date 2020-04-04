@@ -3,11 +3,13 @@
 
 import os
 import sys
+import time
 import signal
 import shutil
 import argparse
 
 from pathlib import Path
+from datetime import datetime
 from importlib import import_module
 
 # assume the run utility is placed in the envs/bin/ directory
@@ -56,7 +58,8 @@ if __name__ == "__main__":
         "tree": "display the design tree",
         "view-sim": "display waveforms",
         "view-cov": "display coverage results",
-        "synth": "synthesize a design"
+        "synth": "synthesize a design",
+        "report": "generate an html report of executed simulations and their stats"
     }
     arguments = ["--%s" % arg if arg in margs.keys() else arg for arg in sys.argv[1:]]
     parser = argparse.ArgumentParser(
@@ -90,12 +93,46 @@ if __name__ == "__main__":
     if args.clean:
         for work_dir in Path(CURRENT_DIR).rglob("**/.tmp_sim"):
             shutil.rmtree(work_dir)
+        for work_dir in Path(CURRENT_DIR).rglob("**/.tmp_cov"):
+            shutil.rmtree(work_dir)
+        for work_dir in Path(CURRENT_DIR).rglob("**/.tmp_lint"):
+            shutil.rmtree(work_dir)
+        for work_dir in Path(CURRENT_DIR).rglob("**/.tmp_batch"):
+            shutil.rmtree(work_dir)
     # perform a collection of simulation
     if args.batch:
-        read_batch.main(CURRENT_DIR, args.sim, args.cov)
+        # define working directory
+        os.environ["WORK_DIR"] = os.path.join(CURRENT_DIR, "./.tmp_batch/")
+        # run simulations
+        t_start = time.time() * 1000.0
+        read_batch.main(CURRENT_DIR, args.sim, args.cov, args.lint)
+        t_end = time.time() * 1000.0
+        # remove previous stats
+        if os.path.exists("./.tmp_batch/batch.stats"):
+            os.remove("./.tmp_batch/batch.stats")
+        # cumulate stats
+        db_batch = {}
+        for stats_path in Path(CURRENT_DIR).rglob("**/*.stats"):
+            with open(stats_path, "r+") as fp:
+                db_sim = dict((line.split(':', 1) for i, line in enumerate(fp) if ':' in line and i > 0))
+            for k, v in db_sim.items():
+                tmp = db_batch[k] if k in db_batch else 0
+                try:
+                    db_batch[k] = float(v) + tmp
+                except ValueError:
+                    relog.error("%s values should be number" % stats_path)
+        # store statistics
+        with open(os.path.join(utils.get_tmp_folder(), "./batch.stats"), "w+") as fp:
+            fp.write("%s\n" % datetime.now())
+            fp.write("Warnings: %d\n" % db_batch["Warnings"])
+            fp.write("Errors: %d\n" % db_batch["Errors"])
+            fp.write("Sim. Time: %d\n" % (t_end - t_start))
         exit(0)
     # check lint error on the design
     if args.lint:
+        # define working directory
+        os.environ["WORK_DIR"] = os.path.join(CURRENT_DIR, "./.tmp_lint/")
+        # run lint
         relog.step("Listing files")
         files, params = read_sources.read_from(CURRENT_DIR)
         # load the simulator script
@@ -103,7 +140,14 @@ if __name__ == "__main__":
         sys.path.append(os.path.dirname(tool_path))
         linter = import_module(config["DIG_SIMULATOR_TOOL"])
         # execute
-        linter.main(files, params, lint=True)
+        t_start = time.time() * 1000.0
+        stats = linter.main(files, params, lint=True)
+        # store statistics
+        with open(os.path.join(utils.get_tmp_folder(), "./lint.stats"), "w+") as fp:
+            fp.write("%s\n" % datetime.now())
+            fp.write("Warnings: %d\n" % stats[0])
+            fp.write("Errors: %d\n" % stats[1])
+            fp.write("Sim. Time: %d\n" % (t_end - t_start))
     # display hierarchy of the design
     if args.tree:
         relog.step("Listing files")
@@ -111,14 +155,25 @@ if __name__ == "__main__":
         design_tree.main(files, params)
     # run a simulation
     if args.sim:
+        # define working directory
+        os.environ["WORK_DIR"] = os.path.join(CURRENT_DIR, "./.tmp_sim/")
+        # run simulation
         relog.step("Listing files")
         files, params = read_sources.read_from(CURRENT_DIR)
         # load the simulator script
         tool_path = utils.find_tool(config["DIG_SIMULATOR_TOOL"])
         sys.path.append(os.path.dirname(tool_path))
         simulator = import_module(config["DIG_SIMULATOR_TOOL"])
-        # execute
-        simulator.main(files, params)
+        # execute simulation
+        t_start = time.time() * 1000.0
+        stats = simulator.main(files, params)
+        t_end = time.time() * 1000.0
+        # store statistics
+        with open(os.path.join(utils.get_tmp_folder(), "./sim.stats"), "w+") as fp:
+            fp.write("%s\n" % datetime.now())
+            fp.write("Warnings: %d\n" % stats[0])
+            fp.write("Errors: %d\n" % stats[1])
+            fp.write("Sim. Time: %d\n" % (t_end - t_start))
     # show waveforms
     if args.view_sim:
         # load the simulator script
@@ -137,3 +192,25 @@ if __name__ == "__main__":
         synthesizor = import_module(config["DIG_SYNTHESIS_TOOL"])
         # execute
         synthesizor.main(files, params, "verilog")
+    # generate an html report
+    if args.report:
+        relog.warning("Not yet implemented")
+        # define working directory
+        os.environ["WORK_DIR"] = os.path.join(CURRENT_DIR, "./.tmp_report/")
+        # read all stats
+        db_batch = {}
+        for stats_path in Path(CURRENT_DIR).rglob("**/*.stats"):
+            with open(stats_path, "r+") as fp:
+                db_sim = dict((line.split(':', 1) for i, line in enumerate(fp) if ':' in line and i > 0))
+            for k, v in db_sim.items():
+                tmp = db_batch[k] if k in db_batch else 0
+                try:
+                    db_batch[k] = float(v) + tmp
+                except ValueError:
+                    relog.error("%s values should be number" % stats_path)
+    # code coverage
+    if args.cov:
+        relog.warning("Not yet implemented")
+    # view coverage
+    if args.view_cov:
+        relog.warning("Not yet implemented")

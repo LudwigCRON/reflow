@@ -6,6 +6,7 @@ import argparse
 import configparser
 
 import common.relog as relog
+import common.utils as utils
 import common.executor as executor
 
 from enum import Enum
@@ -15,7 +16,8 @@ from collections import Counter
 class SimType(Enum):
     SIMULATION = 0,
     COVERAGE   = 1,
-    ALL        = 2
+    LINT       = 2,
+    ALL        = 3
 
 
 def rename_section(config: configparser.ConfigParser, old_name: str, new_name: str):
@@ -42,7 +44,13 @@ def normalize_config(config: configparser.ConfigParser):
     """
     adjust section name and option
     """
+    # pre-process to resolve default category
     rules = config.sections()
+    if "default" in rules:
+        for opt in config.options("default"):
+            config.add_section(opt)
+        config.remove_section("default")
+        rules = config.sections()
     # translate += functionallity to extend existing option
     for rule in rules:
         for opt in config.options(rule):
@@ -67,7 +75,7 @@ def normalize_config(config: configparser.ConfigParser):
                     config.remove_option(rule, opt)
                 # just create the option
                 else:
-                    valb = batch.get(rule, opt)
+                    valb = config.get(rule, opt)
                     config.set(rule, opt_ref, str(valb))
     # parse rules
     cut_rules = (parse_rule(rule) for rule in rules)
@@ -80,25 +88,54 @@ def normalize_config(config: configparser.ConfigParser):
 
 def parse_rule(text: str) -> tuple:
     """
-    folder_path:
-    folder_path@sim_type:
-    folder_path>label:
-    folder_path>label@sim_type:
+    First Group of Rules
+        folder_path:
+        folder_path@sim_type:
+        folder_path>label:
+        folder_path>label@sim_type:
+    Second Group of Rules
+        do folder_path:
+        do folder_path as label:
+        do sim_type on folder_path:
+        do sim_type on folder_path as label:
     """
-    # trim text
-    txt = text.strip()
-    txt = txt if ":" not in txt else txt.split(":", 1)[0]
-    # default return value
-    folder, lbl, st = txt, txt, ""
-    if ">" in txt:
-        folder, lbl = txt.split(">", 1)
-    if "@" in lbl:
-        lbl, st = lbl.split("@", 1)
-    if "cov" in st.lower():
-        return (folder, lbl, SimType.COVERAGE)
-    elif "sim" in st.lower():
-        return (folder, lbl, SimType.SIMULATION)
-    return (folder, lbl, SimType.ALL)
+    folder, label, sim_type = None, None, None
+    if text.strip().startswith("do "):
+        # ==== second group ====
+        # do\s*([\/\w\.]+)      : capture folder_path or sim_type
+        # (?:on\s*([\/\w\.]+))? : capture only folder_path
+        # (?:as\s*([\w]+))?     : capture only label
+        matches = re.finditer(
+            r"do\s*([\/\w\.]+)\s*(?:on\s*([\/\w\.]+))?\s*(?:as\s*([\w]+))?", text)
+        ans = (match.groups() for match in matches)
+        for a in ans:
+            sim_type, folder, label = a
+            if folder is None:
+                folder = sim_type
+                sim_type = None
+            if folder is not None:
+                sim_type = SimType.ALL if sim_type is None else \
+                        SimType.SIMULATION if "sim" in sim_type.lower() else \
+                        SimType.COVERAGE if "cov" in sim_type.lower() else \
+                        SimType.LINT if "lint" in sim_type.lower() else SimType.ALL
+                return (folder, label, sim_type)
+    else:
+        # ==== first group ====
+        # ([\/\w\.]+)   : capture folder_path
+        # (?:>([\w]+))? : capture label if exist
+        # (?:@([\w]+))? : capture sim_type if exist
+        matches = re.finditer(r"([\/\w\.]+)\s*(?:>\s*([\w]+))?(?:@\s*([\w]+))?", text)
+        ans = (match.groups() for match in matches)
+        for a in ans:
+            folder, label, sim_type = a
+            if folder is not None:
+                sim_type = SimType.ALL if sim_type is None else \
+                        SimType.SIMULATION if "sim" in sim_type.lower() else \
+                        SimType.COVERAGE if "cov" in sim_type.lower() else \
+                        SimType.LINT if "lint" in sim_type.lower() else SimType.ALL
+                label = folder if label is None else label
+                return (folder, label, sim_type)
+    return (None, None, SimType.ALL)
 
 
 def read_config(batch_file: str):
@@ -125,21 +162,31 @@ def read_config(batch_file: str):
         batch.read([filepath])
     except configparser.DuplicateSectionError as dse:
         relog.error((
-            "batch cannot accept duplicate rules\n\t"
-            "consider apply a label 'folder > label [@SIM_TYPE]:' to %s" % dse.section))
+            "batch cannot accept duplicate rules\n\t",
+            "consider apply a label 'folder > label [@SIM_TYPE]:' to %s" % dse.section,
+            "\n\tor a in this format 'do SIM_TYPE on folder as label:'"))
+    except configparser.MissingSectionHeaderError as nse:
+        # add folder of a tc in default category
+        # !! should be processed in normalize!!
+        with open(filepath, "r+") as fp:
+            batch.read_string('default:\n' + fp.read())
     normalize_config(batch)
     return batch
 
 
-def run(cwd, batch, sim_only: bool = False, cov_only: bool = False):
+def run(cwd, batch,
+        sim_only: bool = False,
+        cov_only: bool = False,
+        lint_only: bool = False):
     N = len(batch.sections())
+    TMP_DIR = utils.get_tmp_folder()
     # create directory for simulation
     for k, rule in enumerate(batch):
         if batch.has_option(rule, "__path__"):
             relog.info(f"[{k}/{N}] Run simulation {rule}")
             p = os.path.join(cwd, batch.get(rule, "__path__"))
             s = eval(batch.get(rule, "__sim_type__"))
-            o = os.path.join(cwd, f".tmp_sim/{rule}")
+            o = os.path.join(TMP_DIR, rule)
             l = os.path.join(o, "Sources.list")
             os.makedirs(o, exist_ok=True)
             # create the Sources.list
@@ -154,16 +201,21 @@ def run(cwd, batch, sim_only: bool = False, cov_only: bool = False):
                         else:
                             fp.write(f"{option}={values}\n")
             # run the simulation
-            if sim_only and s in [SimType.SIMULATION, SimType.ALL]:
-                executor.sh_exec("run -c sim", CWD=o)
-            elif cov_only and s in [SimType.COVERAGE, SimType.ALL]:
-                executor.sh_exec("run -c cov", CWD=o)
+            if sim_only and s == SimType.SIMULATION or s == SimType.ALL:
+                executor.sh_exec("run -c sim", CWD=o, ENV=os.environ.copy())
+            elif sim_only and s == SimType.COVERAGE or s == SimType.ALL:
+                executor.sh_exec("run -c cov", CWD=o, ENV=os.environ.copy())
+            elif sim_only and s == SimType.LINT or s == SimType.ALL:
+                executor.sh_exec("run -c lint", CWD=o, ENV=os.environ.copy())
 
 
-def main(cwd, sim_only: bool = False, cov_only: bool = False):
+def main(cwd,
+    sim_only: bool = False,
+    cov_only: bool = False,
+    lint_only: bool = False):
     batch = read_config(cwd)
     if batch:
-        run(cwd, batch, sim_only=sim_only, cov_only=cov_only)
+        run(cwd, batch, sim_only, cov_only, lint_only)
     else:
         relog.error("No Batch.list file found")
 
@@ -173,7 +225,8 @@ if __name__ == "__main__":
     parser.add_argument("-i", "--input", type=str, help="list of input files")
     parser.add_argument("-s", "--sim", default=False, action="store_true", help="select only simulation")
     parser.add_argument("-c", "--cov", default=False, action="store_true", help="select only coverage")
+    parser.add_argument("-l", "--lint", default=False, action="store_true", help="select only lint")
     parser.add_argument("-nl", "--no-logger", action="store_true", help="already include logger macro")
     args = parser.parse_args()
     # read batch description file
-    main(args.input, args.sim, args.cov)
+    main(args.input, args.sim, args.cov, args.lint)

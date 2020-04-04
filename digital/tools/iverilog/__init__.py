@@ -77,6 +77,7 @@ def run(lint: bool = False):
     if lint:
         relog.step("Linting files")
         relog.display_log(PARSER_LOG)
+        return relog.get_stats(SIM_LOG)
     # run the simulation
     else:
         relog.step("Running simulation")
@@ -86,12 +87,14 @@ def run(lint: bool = False):
             os.remove(WAVE)
         if os.path.exists("./dump.%s" % WAVE_FORMAT):
             os.rename("./dump.%s" % WAVE_FORMAT, WAVE)
+        return relog.get_stats(SIM_LOG)
 
 
 def main(files, params, lint: bool = False):
     flags = prepare(files, params)
     compile(*flags)
-    run(lint)
+    stats = run(lint)
+    return stats
 
 
 if __name__ == "__main__":

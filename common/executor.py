@@ -8,19 +8,24 @@ import common.relog as relog
 
 def sh_exec(cmd: str, log: str = None, mode: str = "w+",
             MAX_TIMEOUT: int = 300, SHOW_CMD: bool = False, SHELL: bool = False,
-            CWD: str = None):
+            CWD: str = None, ENV: object = None):
     """
     simplify code for executing shell command
     """
     try:
-        if CWD is None:
+        if CWD is None and ENV is None:
             proc = subprocess.Popen(shlex.split(cmd),
                                     stdout=subprocess.PIPE,
                                     stderr=subprocess.STDOUT, shell=SHELL)
-        else:
+        elif ENV is None:
             proc = subprocess.Popen(shlex.split(cmd),
                                     stdout=subprocess.PIPE,
                                     stderr=subprocess.STDOUT, shell=SHELL, cwd=CWD)
+        else:
+            proc = subprocess.Popen(shlex.split(cmd),
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.STDOUT, shell=SHELL,
+                                    cwd=CWD, env=ENV)
         if log is not None:
             with open(log, mode) as fp:
                 if SHOW_CMD:

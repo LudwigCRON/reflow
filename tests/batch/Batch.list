@@ -1,9 +1,11 @@
+tb
+
 # fastest clock only for reduce cov speed
-tb>UFC@COV:
+tb > UFC @ COV:
   SIM_FLAGS=-Ptb.PERIOD=1.0 # 1 GHz
 
 # flast clock
-tb:
+tb>fast_clock:
   SIM_FLAGS=-Ptb.PERIOD=16.125 # 64 MHz
 
 # normal clock at only 32 MHz
@@ -15,5 +17,17 @@ tb>n@SIM:
 tb>s:
   SIM_FLAGS=-Ptb.PERIOD=129 # 7.75 MHz
 
-#youpi:
+do cov on tb as UFC2:
+  SIM_FLAGS=-Ptb.PERIOD=1.0 # 1 GHz
+
+# normal clock at only 32 MHz
+do sim on tb as n2:
+  SIM_FLAGS =-Ptb.PERIOD=31.25 # 32 MHz
+  SIM_FLAGS+=-DEFINE TEST
+
+# very slow clock at 
+do tb as s2:
+  SIM_FLAGS=-Ptb.PERIOD=129 # 7.75 MHz
+
+do tb as youpi:
 #  SIM_FLAGS=-Ptb.PERIOD=129
