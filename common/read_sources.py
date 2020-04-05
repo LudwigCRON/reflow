@@ -9,11 +9,26 @@ from collections import defaultdict
 
 import common.verilog as verilog
 
-VERILOG_AMS = [".vams"]
-VERILOG = [".v", ".vh", ".va"]
-SYSTEM_VERILOG = [".sv", ".svh"]
-ASSERTIONS = [".sva"]
-LIBERTY = [".lib"]
+TYPES = {
+    "VERILOG_AMS": [
+        ".vams"
+    ],
+    "VERILOG": [
+        ".v", ".vh", ".va"
+    ],
+    "SYSTEM_VERILOG": [
+        ".sv", ".svh"
+    ],
+    "ASSERTIONS": [
+        ".sva"
+    ],
+    "ANALOG": [
+        ".scs", ".cir", ".asc", ".sp"
+    ],
+    "LIBERTY": [
+        ".lib"
+    ]
+}
 
 
 # = help in parsing sources.list =
@@ -138,16 +153,9 @@ def get_type(filepath: str) -> str:
     if not os.path.isfile(filepath):
         return None
     _, ext = os.path.splitext(filepath)
-    if ext in VERILOG:
-        return "VERILOG"
-    elif ext in SYSTEM_VERILOG:
-        return "SYSTEM_VERILOG"
-    elif ext in LIBERTY:
-        return "LIBERTY"
-    elif ext in VERILOG_AMS:
-        return "VERILOG_AMS"
-    elif ext in ASSERTIONS:
-        return "ASSERT"
+    for k, v in TYPES.items():
+        if ext in v:
+            return k
     return None
 
 
@@ -155,16 +163,11 @@ def is_digital(filepath: str) -> bool:
     if not os.path.isfile(filepath):
         return "digital" in filepath
     _, ext = os.path.splitext(filepath)
-    return any([
-        ext in VERILOG,
-        ext in SYSTEM_VERILOG,
-        ext in LIBERTY,
-        ext in VERILOG_AMS,
-        ext in ASSERTIONS])
+    return get_type(filepath) not in ["ANALOG", None]
 
 
 def is_analog(filepath: str) -> bool:
-    return False
+    return get_type(filepath) in ["ANALOG"]
 
 
 # ====== business logic ======

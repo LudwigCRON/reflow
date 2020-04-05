@@ -8,7 +8,7 @@ import common.utils as utils
 import common.relog as relog
 import common.executor as executor
 
-from common.read_sources import resolve_includes
+from common.read_sources import get_type, is_digital, resolve_includes
 
 
 WAVE_FORMAT    = "vcd"
@@ -48,7 +48,7 @@ def prepare(files, PARAMS):
         if "TIMESCALE" in PARAMS:
             fp.write("+timescale+%s\n" % PARAMS['TIMESCALE'])
         for file in FILES:
-            if not file.endswith(".sva"):
+            if is_digital(file) and get_type(file) not in ["ASSERTIONS"]:
                 fp.write("%s\n" % file)
     # estimate appropriate flags
     generation = "verilog-ams" if any(["AMS" in m for m in MIMES]) else \
