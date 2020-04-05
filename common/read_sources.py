@@ -255,34 +255,38 @@ def read_from(sources_list: str, no_logger: bool = False, no_stdout: bool = True
     # store the list of files
     graph = {}
     try:
-        graph = read_sources(sources_list)
+        graph = read_sources(sources_list, {})
     except Exception:
         traceback.print_exc(file=sys.stderr)
     # display the list of files and their mime-type
     for node in graph:
-        _t = get_type(node.name)
-        if _t:
-            if no_stdout:
-                files.append((node.name, _t))
-            else:
-                print(node.name, _t, sep=";")
+        if isinstance(node, Node):
+            _t = get_type(node.name)
+            if _t:
+                if no_stdout:
+                    files.append((node.name, _t))
+                else:
+                    print(node.name, _t, sep=";")
     # list the parameters
     for node in graph:
-        if no_stdout:
+        if no_stdout and isinstance(node, Node):
             parameters.update(node.params)
+        elif no_stdout:
+            pass
         else:
             for key, value in node.params.items():
                 print("%s\t:\t%s" % (key, value))
     # define the most accurate timescale define
     min_ts = (1, "s", 1, "ms")
     for node in graph:
-        ts = verilog.find_timescale(node.name) if is_digital(node.name) else []
-        if ts:
-            sn, su, rn, ru = ts[0]
-            if evaluate_time(sn, su) < evaluate_time(*min_ts[0:2]):
-                min_ts = (sn, su, *min_ts[2:4])
-            if evaluate_time(rn, ru) < evaluate_time(*min_ts[2:4]):
-                min_ts = (*min_ts[0:2], rn, ru)
+        if isinstance(node, Node):
+            ts = verilog.find_timescale(node.name) if is_digital(node.name) else []
+            if ts:
+                sn, su, rn, ru = ts[0]
+                if evaluate_time(sn, su) < evaluate_time(*min_ts[0:2]):
+                    min_ts = (sn, su, *min_ts[2:4])
+                if evaluate_time(rn, ru) < evaluate_time(*min_ts[2:4]):
+                    min_ts = (*min_ts[0:2], rn, ru)
     if evaluate_time(*min_ts[0:2]) == 1.0:
         print("TIMESCALE\t:\t'1ns/100ps'")
         parameters["TIMESCALE"] = "1ns/100ps"
@@ -290,8 +294,9 @@ def read_from(sources_list: str, no_logger: bool = False, no_stdout: bool = True
         print("TIMESCALE\t:\t'%s%s/%s%s'" % min_ts)
         parameters["TIMESCALE"] = "%s%s/%s%s" % min_ts
     # define the top module
-    print("TOP_MODULE\t:\t'%s'" % graph[-1].name)
-    parameters["TOP_MODULE"] = graph[-1].name
+    if isinstance(graph[-1], Node):
+        print("TOP_MODULE\t:\t'%s'" % graph[-1].name)
+        parameters["TOP_MODULE"] = graph[-1].name
     if no_stdout:
         return files, parameters
 

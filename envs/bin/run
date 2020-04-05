@@ -160,10 +160,22 @@ if __name__ == "__main__":
         # run simulation
         relog.step("Listing files")
         files, params = read_sources.read_from(CURRENT_DIR)
+        # determine the simulation type
+        IS_DIG_SIM = all((read_sources.is_digital(file) for file, _ in files))
+        if not IS_DIG_SIM:
+            files, params = read_sources.read_from(CURRENT_DIR, no_logger=True)
+        IS_ANA_SIM = all((read_sources.is_analog(file) for file, _ in files))
         # load the simulator script
-        tool_path = utils.find_tool(config["DIG_SIMULATOR_TOOL"])
-        sys.path.append(os.path.dirname(tool_path))
-        simulator = import_module(config["DIG_SIMULATOR_TOOL"])
+        if IS_DIG_SIM and not IS_ANA_SIM:
+            tool_path = utils.find_tool(config["DIG_SIMULATOR_TOOL"])
+            sys.path.append(os.path.dirname(tool_path))
+            simulator = import_module(config["DIG_SIMULATOR_TOOL"])
+        elif IS_ANA_SIM and not IS_DIG_SIM:
+            tool_path = utils.find_tool(config["ANA_SIMULATOR_TOOL"])
+            sys.path.append(os.path.dirname(tool_path))
+            simulator = import_module(config["ANA_SIMULATOR_TOOL"])
+        else:
+            relog.error("Not yet implementd mixed signal simulation")
         # execute simulation
         t_start = time.time() * 1000.0
         stats = simulator.main(files, params)

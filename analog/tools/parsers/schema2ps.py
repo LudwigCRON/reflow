@@ -229,7 +229,6 @@ class PSFile:
     @staticmethod
     def line(param, relative: str = ''):
         _style = param.get("style", "solid")
-        print(_style)
         _ps = "[] 0 setdash\n" if _style == "solid" else \
               "[8 4] 0 setdash\n" if _style == "dash" else \
               "[4 4] 0 setdash\n" if _style == "dot" else \
