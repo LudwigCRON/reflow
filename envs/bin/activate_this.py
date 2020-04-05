@@ -44,3 +44,7 @@ sys.prefix = base
 # Move the added items to the front of the path, in place
 new = list(sys.path)
 sys.path[:] = [i for i in new if i not in prev] + [i for i in new if i in prev]
+
+# Add base path of ReFlow
+REFLOW = os.path.normpath(os.path.join(bin_dir, "../../"))
+os.environ["REFLOW"] = REFLOW

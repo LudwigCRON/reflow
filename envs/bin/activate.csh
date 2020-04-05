@@ -52,4 +52,7 @@ unset do_prompt
 
 alias pydoc python -m pydoc
 
+# Add base path of ReFlow
+setenv REFLOW=$(dirname $(dirname $(dirname $0)))
+
 rehash
