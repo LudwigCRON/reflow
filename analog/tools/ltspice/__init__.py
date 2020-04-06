@@ -3,6 +3,7 @@
 
 import os
 import sys
+import time
 
 sys.path.append(os.environ["REFLOW"])
 
@@ -12,7 +13,45 @@ import common.executor as executor
 
 
 DEFAULT_TMPDIR = utils.get_tmp_folder()
-SIM_LOG        = None  # os.path.join(DEFAULT_TMPDIR, "sim.log")
+SIM_LOG        = None
+
+
+def is_file_timeout(
+        file: str,
+        start: int,
+        max: int = 720,
+        shall_exist: bool = True):
+    file_exists = os.path.exists(file)
+    return time.time() - start < max and (file_exists == shall_exist)
+
+
+def simulation_finished(log_file: str):
+    with open(log_file, "r+") as fp:
+        for line in fp:
+            l = line.lower().replace('\x00', '')
+            if "total elapsed time:" in l:
+                return True
+    return False
+
+
+def watch_log(asc: str):
+    log_file = asc.replace(".asc", ".log")
+    # remove previous execution log file
+    if os.path.exists(log_file):
+        os.remove(log_file)
+    t_start = time.time()
+    # wait log file created
+    while is_file_timeout(log_file, t_start, max=30, shall_exist=False):
+        time.sleep(1)
+    if not os.path.exists(log_file):
+        relog.error("No simulation log file found")
+        return False
+    # wait the end of the simulation
+    count = 0
+    while not simulation_finished(log_file) and count < 2500:
+        time.sleep(1)
+        count += 1
+    return count < 500
 
 
 def run(asc: str):
@@ -26,8 +65,18 @@ def run(asc: str):
         ltspice = "wine XVIIx64.exe"
     else:
         ltspice = "XVIIx64.exe"
-    executor.sh_exec("%s -run %s" % (ltspice, asc), SIM_LOG, MAX_TIMEOUT=300)
-    return 0, 0  # relog.get_stats(SIM_LOG)
+    # start the simulation
+    gen = executor.ish_exec(
+        "%s -run %s" % (ltspice, asc), SIM_LOG,
+        MAX_TIMEOUT=300
+    )
+    proc = next(gen)
+    # watch the log file to determine when
+    # the simulation ends
+    sim_done = watch_log(asc)
+    if proc:
+        proc.kill()
+    return 0, not sim_done  # relog.get_stats(SIM_LOG)
 
 
 def main(files, params):

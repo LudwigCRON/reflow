@@ -188,12 +188,27 @@ if __name__ == "__main__":
             fp.write("Sim. Time: %d\n" % (t_end - t_start))
     # show waveforms
     if args.view_sim:
+        # define working directory
+        os.environ["WORK_DIR"] = os.path.join(CURRENT_DIR, "./.tmp_sim/")
+        # determine the simulation type
+        files, params = read_sources.read_from(CURRENT_DIR)
+        IS_DIG_SIM = all((read_sources.is_digital(file) for file, _ in files))
+        if not IS_DIG_SIM:
+            files, params = read_sources.read_from(CURRENT_DIR, no_logger=True)
+        IS_ANA_SIM = all((read_sources.is_analog(file) for file, _ in files))
         # load the simulator script
-        tool_path = utils.find_tool(config["WAVEFORM_VIEWER"])
-        sys.path.append(os.path.dirname(tool_path))
-        waveform = import_module(config["WAVEFORM_VIEWER"])
-        # execute
-        waveform.main("vcd")
+        if IS_DIG_SIM and not IS_ANA_SIM:
+            tool_path = utils.find_tool(config["DIG_WAVEFORM_VIEWER"])
+            sys.path.append(os.path.dirname(tool_path))
+            waveform = import_module(config["DIG_WAVEFORM_VIEWER"])
+            waveform.main("vcd")
+        elif IS_ANA_SIM and not IS_DIG_SIM:
+            tool_path = utils.find_tool(config["ANA_WAVEFORM_VIEWER"])
+            sys.path.append(os.path.dirname(tool_path))
+            waveform = import_module(config["ANA_WAVEFORM_VIEWER"])
+            waveform.main("raw")
+        else:
+            relog.error("Not yet implementd mixed signal simulation")
     # synthesis
     if args.synth:
         relog.step("Listing files")
