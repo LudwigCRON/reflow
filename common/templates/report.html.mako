@@ -13,23 +13,24 @@
                 <td>total time</td>
             </th>
             <tbody>
-                % for block in blocks:
+                % for i, block in enumerate(blocks):
                 <tr>
-                    <td>{block.name}</td>
-                    <td>{block.lint}/{block.nb_lint}</td>
-                    <td>{block.simulation}/{block.nb_simulation}</td>
-                    <td>{block.coverage}/{block.nb_coverage}</td>
-                    <td>{block.total_time}</td>
+                    <td>${block.get("name")}</td>
+                    <td>${block.get("lint")}/${block.get("nb_lint")}</td>
+                    <td>${block.get("simulation")}/${block.get("nb_simulation")}</td>
+                    <td>${block.get("coverage")}/${block.get("nb_coverage")}</td>
+                    <td>${block.get("total_time")}</td>
                 </tr>
                 % endfor
             </tbody>
         </table>
 
-        % for block in blocks:
+        % for i, block in enumerate(blocks):
         <details>
             <summary>
-                {block.name}
+                ${block.get("name")}
             </summary>
+            <h3>Lint</h3>
             <table>
                 <th>
                     <td>id</td>
@@ -38,16 +39,17 @@
                     <td>total time</td>
                 </th>
                 <tbody>
-                    % for lint in blocks.lints
+                    % for i, lint in enumerate(block.get("lints", [])):
                     <tr>
-                        <td>{lint.id}</td>
-                        <td>{lint.warnings}</td>
-                        <td>{lint.errors}</td>
-                        <td>{lint.total_time}</td>
+                        <td>${lint.get("name")}</td>
+                        <td>${lint.get("warnings")}</td>
+                        <td>${lint.get("errors")}</td>
+                        <td>${lint.get("total_time")}</td>
                     </tr>
                     % endfor
                 </tbody>
             </table>
+            <h3>Simulation</h3>
             <table>
                 <th>
                     <td>id</td>
@@ -56,16 +58,17 @@
                     <td>total time</td>
                 </th>
                 <tbody>
-                    % for sim in blocks.sims
+                    % for i, sim in enumerate(block.get("sims", [])):
                     <tr>
-                        <td>{sim.id}</td>
-                        <td>{sim.warnings}</td>
-                        <td>{sim.errors}</td>
-                        <td>{sim.total_time}</td>
+                        <td>${sim.get("name")}</td>
+                        <td>${sim.get("warnings")}</td>
+                        <td>${sim.get("errors")}</td>
+                        <td>${sim.get("total_time")}</td>
                     </tr>
                     % endfor
                 </tbody>
             </table>
+            <h3>Code coverage</h3>
             <table>
                 <th>
                     <td>id</td>
@@ -74,12 +77,12 @@
                     <td>total time</td>
                 </th>
                 <tbody>
-                    % for cov in blocks.covs
+                    % for i, cov in enumerate(block.get("covs", [])):
                     <tr>
-                        <td>{cov.id}</td>
-                        <td>{cov.warnings}</td>
-                        <td>{cov.errors}</td>
-                        <td>{cov.total_time}</td>
+                        <td>${cov.get("name")}</td>
+                        <td>${cov.get("warnings")}</td>
+                        <td>${cov.get("errors")}</td>
+                        <td>${cov.get("total_time")}</td>
                     </tr>
                     % endfor
                 </tbody>
