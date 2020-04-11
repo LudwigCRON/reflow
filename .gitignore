@@ -7,3 +7,7 @@
 .tmp_batch
 # python cache files
 __pycache__
+# do not store the environment
+# but prepare a requirement.txt 
+# for needed python modules
+envs/reflow
