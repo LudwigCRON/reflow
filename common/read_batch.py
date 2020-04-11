@@ -14,10 +14,10 @@ from collections import Counter
 
 
 class SimType(Enum):
-    SIMULATION = 0,
-    COVERAGE   = 1,
-    LINT       = 2,
-    ALL        = 3
+    SIMULATION = (0,)
+    COVERAGE = (1,)
+    LINT = (2,)
+    ALL = 3
 
 
 def rename_section(config: configparser.ConfigParser, old_name: str, new_name: str):
@@ -33,7 +33,7 @@ def rename_section(config: configparser.ConfigParser, old_name: str, new_name: s
         config.add_section(new_name)
     except configparser.DuplicateSectionError:
         hist = Counter(config.sections())
-        new_name  = "%s_%d" % (new_name, hist[new_name])
+        new_name = "%s_%d" % (new_name, hist[new_name])
         config.add_section(new_name)
     # transfer options
     for option in options:
@@ -106,7 +106,8 @@ def parse_rule(text: str) -> tuple:
         # (?:on\s*([\/\w\.]+))? : capture only folder_path
         # (?:as\s*([\w]+))?     : capture only label
         matches = re.finditer(
-            r"do\s*([\/\w\.]+)\s*(?:on\s*([\/\w\.]+))?\s*(?:as\s*([\w]+))?", text)
+            r"do\s*([\/\w\.]+)\s*(?:on\s*([\/\w\.]+))?\s*(?:as\s*([\w]+))?", text
+        )
         ans = (match.groups() for match in matches)
         for a in ans:
             sim_type, folder, label = a
@@ -114,10 +115,17 @@ def parse_rule(text: str) -> tuple:
                 folder = sim_type
                 sim_type = None
             if folder is not None:
-                sim_type = SimType.ALL if sim_type is None else \
-                        SimType.SIMULATION if "sim" in sim_type.lower() else \
-                        SimType.COVERAGE if "cov" in sim_type.lower() else \
-                        SimType.LINT if "lint" in sim_type.lower() else SimType.ALL
+                sim_type = (
+                    SimType.ALL
+                    if sim_type is None
+                    else SimType.SIMULATION
+                    if "sim" in sim_type.lower()
+                    else SimType.COVERAGE
+                    if "cov" in sim_type.lower()
+                    else SimType.LINT
+                    if "lint" in sim_type.lower()
+                    else SimType.ALL
+                )
                 return (folder, label, sim_type)
     else:
         # ==== first group ====
@@ -129,10 +137,17 @@ def parse_rule(text: str) -> tuple:
         for a in ans:
             folder, label, sim_type = a
             if folder is not None:
-                sim_type = SimType.ALL if sim_type is None else \
-                        SimType.SIMULATION if "sim" in sim_type.lower() else \
-                        SimType.COVERAGE if "cov" in sim_type.lower() else \
-                        SimType.LINT if "lint" in sim_type.lower() else SimType.ALL
+                sim_type = (
+                    SimType.ALL
+                    if sim_type is None
+                    else SimType.SIMULATION
+                    if "sim" in sim_type.lower()
+                    else SimType.COVERAGE
+                    if "cov" in sim_type.lower()
+                    else SimType.LINT
+                    if "lint" in sim_type.lower()
+                    else SimType.ALL
+                )
                 label = folder if label is None else label
                 return (folder, label, sim_type)
     return (None, None, SimType.ALL)
@@ -144,7 +159,8 @@ def read_config(batch_file: str):
         allow_no_value=True,
         strict=True,
         empty_lines_in_values=False,
-        inline_comment_prefixes=('#', ';'))
+        inline_comment_prefixes=("#", ";"),
+    )
     # keep case of string
     batch.optionxform = str
     # override section regex
@@ -161,23 +177,25 @@ def read_config(batch_file: str):
     try:
         batch.read([filepath])
     except configparser.DuplicateSectionError as dse:
-        relog.error((
-            "batch cannot accept duplicate rules\n\t",
-            "consider apply a label 'folder > label [@SIM_TYPE]:' to %s" % dse.section,
-            "\n\tor a in this format 'do SIM_TYPE on folder as label:'"))
+        relog.error(
+            (
+                "batch cannot accept duplicate rules\n\t",
+                "consider apply a label 'folder > label [@SIM_TYPE]:' to %s" % dse.section,
+                "\n\tor a in this format 'do SIM_TYPE on folder as label:'",
+            )
+        )
     except configparser.MissingSectionHeaderError as nse:
         # add folder of a tc in default category
         # !! should be processed in normalize!!
         with open(filepath, "r+") as fp:
-            batch.read_string('default:\n' + fp.read())
+            batch.read_string("default:\n" + fp.read())
     normalize_config(batch)
     return batch
 
 
-def run(cwd, batch,
-        sim_only: bool = False,
-        cov_only: bool = False,
-        lint_only: bool = False):
+def run(
+    cwd, batch, sim_only: bool = False, cov_only: bool = False, lint_only: bool = False
+):
     N = len(batch.sections())
     TMP_DIR = utils.get_tmp_folder()
     # create directory for simulation
@@ -188,31 +206,50 @@ def run(cwd, batch,
             s = eval(batch.get(rule, "__sim_type__"))
             o = os.path.join(TMP_DIR, rule)
             l = os.path.join(o, "Sources.list")
+            b = os.path.join(p, "Batch.list")
             os.makedirs(o, exist_ok=True)
-            # create the Sources.list
-            with open(l, "w+") as fp:
-                fp.write("%s\n" % os.path.join("../../", batch.get(rule, "__path__")))
-                for option in batch.options(rule):
-                    if not option.startswith("__"):
-                        values = batch.get(rule, option, raw=True)
-                        if "[" in values:
-                            values = eval(values)
-                            fp.write(f"{option}={' '.join(values)}\n")
-                        else:
-                            fp.write(f"{option}={values}\n")
-            # run the simulation
-            if sim_only and s == SimType.SIMULATION or s == SimType.ALL:
-                executor.sh_exec("run -c sim", CWD=o, ENV=os.environ.copy())
-            elif sim_only and s == SimType.COVERAGE or s == SimType.ALL:
-                executor.sh_exec("run -c cov", CWD=o, ENV=os.environ.copy())
-            elif sim_only and s == SimType.LINT or s == SimType.ALL:
-                executor.sh_exec("run -c lint", CWD=o, ENV=os.environ.copy())
+            if not os.path.exists(b):
+                # create the Sources.list
+                with open(l, "w+") as fp:
+                    fp.write("%s\n" % os.path.join("../../", batch.get(rule, "__path__")))
+                    for option in batch.options(rule):
+                        if not option.startswith("__"):
+                            values = batch.get(rule, option, raw=True)
+                            if "[" in values:
+                                values = eval(values)
+                                fp.write(f"{option}={' '.join(values)}\n")
+                            else:
+                                fp.write(f"{option}={values}\n")
+            # select which simulations should be performed
+            batch_options = [
+                "sim" if sim_only else "",
+                "cov" if cov_only else "",
+                "lint" if lint_only else "",
+            ]
+            sim_only, cov_only, lint_only = (
+                sim_only and not cov_only and not lint_only,
+                cov_only and not sim_only and not lint_only,
+                lint_only and not cov_only and not sim_only,
+            )
+            if not sim_only and not cov_only and not lint_only:
+                sim_only, cov_only, lint_only = True, True, True
+            # run the simulations
+            if os.path.exists(b):
+                executor.sh_exec(
+                    "run -c batch %s" % (" ".join(batch_options)),
+                    CWD=p,
+                    ENV=os.environ.copy(),
+                )
+            else:
+                if sim_only and s in [SimType.SIMULATION, SimType.ALL]:
+                    executor.sh_exec("run -c sim", CWD=o, ENV=os.environ.copy())
+                if cov_only and s in [SimType.COVERAGE, SimType.ALL]:
+                    executor.sh_exec("run -c cov", CWD=o, ENV=os.environ.copy())
+                if lint_only and s in [SimType.LINT, SimType.ALL]:
+                    executor.sh_exec("run -c lint", CWD=o, ENV=os.environ.copy())
 
 
-def main(cwd,
-    sim_only: bool = False,
-    cov_only: bool = False,
-    lint_only: bool = False):
+def main(cwd, sim_only: bool = False, cov_only: bool = False, lint_only: bool = False):
     batch = read_config(cwd)
     if batch:
         run(cwd, batch, sim_only, cov_only, lint_only)
@@ -221,12 +258,20 @@ def main(cwd,
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Process some integers.')
+    parser = argparse.ArgumentParser(description="Process some integers.")
     parser.add_argument("-i", "--input", type=str, help="list of input files")
-    parser.add_argument("-s", "--sim", default=False, action="store_true", help="select only simulation")
-    parser.add_argument("-c", "--cov", default=False, action="store_true", help="select only coverage")
-    parser.add_argument("-l", "--lint", default=False, action="store_true", help="select only lint")
-    parser.add_argument("-nl", "--no-logger", action="store_true", help="already include logger macro")
+    parser.add_argument(
+        "-s", "--sim", default=False, action="store_true", help="select only simulation"
+    )
+    parser.add_argument(
+        "-c", "--cov", default=False, action="store_true", help="select only coverage"
+    )
+    parser.add_argument(
+        "-l", "--lint", default=False, action="store_true", help="select only lint"
+    )
+    parser.add_argument(
+        "-nl", "--no-logger", action="store_true", help="already include logger macro"
+    )
     args = parser.parse_args()
     # read batch description file
     main(args.input, args.sim, args.cov, args.lint)

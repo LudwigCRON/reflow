@@ -40,6 +40,42 @@ os.environ["DEFAULT_CONFIG"] = default_config
 os.environ["LOCAL_FLOW_CONFIG"] = "" if local_config is None else local_config
 os.environ["CONFIG_PATH"] = default_config if local_config is None else local_config
 
+
+def read_sim_stat(path: str):
+    # <block>/.tmp_<type of sim>/<type of sim>.stats
+    block = os.path.basename(os.path.dirname(os.path.dirname(path)))
+    type = os.path.basename(str(path).lower()).split(".")[0]
+    # read stats of simulations
+    with open(path, "r+") as fp:
+        db_sim = dict(
+            (line.split(":", 1) for i, line in enumerate(fp) if ":" in line and i > 0)
+        )
+        # parse number values
+        def try_parse(v: str):
+            if all((c in "0123456789.\n" for c in v.strip())):
+                return float(v)
+            return v.strip()
+
+        db_sim = {k: try_parse(v) for k, v in db_sim.items()}
+        db_sim["total_time"] = db_sim.pop("Sim. Time")
+        db_sim["warnings"] = db_sim.pop("Warnings")
+        db_sim["errors"] = db_sim.pop("Errors")
+        db_sim["name"] = block
+        print(db_sim)
+    return type, db_sim
+
+
+def add_extra_stats(db_batch: dict):
+    db_batch["nb_simulation"] = len(db_batch["sims"])
+    db_batch["nb_coverage"] = len(db_batch["covs"])
+    db_batch["nb_lint"] = len(db_batch["lints"])
+    db_batch["simulation"] = sum(
+        (1 for sim in db_batch["sims"] if sim.get("errors", 0) == 0)
+    )
+    db_batch["coverage"] = sum((1 for sim in db_batch["covs"] if sim.get("errors", 0) == 0))
+    db_batch["lint"] = sum((1 for sim in db_batch["lints"] if sim.get("errors", 0) == 0))
+
+
 if __name__ == "__main__":
     # signal handling (kill, ctrl+c, ...)
     make_process = None
@@ -238,55 +274,67 @@ if __name__ == "__main__":
         os.environ["WORK_DIR"] = os.path.join(CURRENT_DIR, "./.tmp_report/")
         os.makedirs(os.environ["WORK_DIR"], exist_ok=True)
         # read all stats
-        db_batch = {"sims": [], "lints": [], "covs": [], "batchs": []}
+        db = {"blocks": []}
+        read_stat_done = []
+        # read batch stats
+        for bstats_path in Path(CURRENT_DIR).rglob("**/batch.stats"):
+            db_batch = {"sims": [], "lints": [], "covs": []}
+            # <block>/.tmp_<type of sim>/<type of sim>.stats
+            # parent dir of tests
+            pwd = os.path.dirname(os.path.dirname(bstats_path))
+            # block name
+            batch = os.path.basename(pwd)
+            # analyse only if not top most one
+            if batch == os.path.basename(CURRENT_DIR):
+                type, db_sim = read_sim_stat(bstats_path)
+                db.update(db_sim)
+                continue
+            for stats_path in Path(pwd).rglob("**/*.stats"):
+                # do not count twice
+                if "batch.stats" in str(stats_path):
+                    continue
+                type, db_sim = read_sim_stat(stats_path)
+                if type != "batch":
+                    db_batch["%ss" % type].append(db_sim)
+                # aggregate
+                for k, v in db_sim.items():
+                    tmp = db_batch[k] if k in db_batch else 0
+                    if k != "name":
+                        try:
+                            db_batch[k] = float(v) + tmp
+                        except ValueError:
+                            relog.error("%s values should be number" % stats_path)
+                read_stat_done.append(stats_path)
+            add_extra_stats(db_batch)
+            db_batch["name"] = batch
+            db["blocks"].append(db_batch)
+        # read other sims
+        db_batch = {"sims": [], "lints": [], "covs": []}
         for stats_path in Path(CURRENT_DIR).rglob("**/*.stats"):
-            block = os.path.basename(os.path.dirname(os.path.dirname(stats_path)))
-            type = os.path.basename(str(stats_path).lower()).split(".")[0]
-            # read stats of simulations
-            with open(stats_path, "r+") as fp:
-                db_sim = dict(
-                    (
-                        line.split(":", 1)
-                        for i, line in enumerate(fp)
-                        if ":" in line and i > 0
-                    )
-                )
-                db_sim["total_time"] = db_sim.pop("Sim. Time")
-                db_sim["warnings"] = db_sim.pop("Warnings")
-                db_sim["errors"] = db_sim.pop("Errors")
+            if stats_path in read_stat_done:
+                continue
+            type, db_sim = read_sim_stat(stats_path)
+            # aggregate
             for k, v in db_sim.items():
                 tmp = db_batch[k] if k in db_batch else 0
-                try:
-                    db_batch[k] = float(v) + tmp
-                except ValueError:
-                    relog.error("%s values should be number" % stats_path)
-            db_sim["name"] = block
-            db_batch["%ss" % type].append(db_sim)
+                if k != "name":
+                    try:
+                        db_batch[k] = float(v) + tmp
+                    except ValueError:
+                        relog.error("%s values should be number" % stats_path)
+            read_stat_done.append(stats_path)
+            if type != "batch":
+                db_batch["%ss" % type].append(db_sim)
         # add some stats to the db
-        db_batch["nb_simulation"] = len(db_batch["sims"])
-        db_batch["nb_coverage"] = len(db_batch["covs"])
-        db_batch["nb_lint"] = len(db_batch["lints"])
-        db_batch["simulation"] = sum(
-            (1 for sim in db_batch["sims"] if sim.get("errors", 0) == 0)
-        )
-        db_batch["coverage"] = sum(
-            (1 for sim in db_batch["covs"] if sim.get("errors", 0) == 0)
-        )
-        db_batch["lint"] = sum(
-            (1 for sim in db_batch["lints"] if sim.get("errors", 0) == 0)
-        )
-        #
-        if len(db_batch["batchs"]) == 1:
-            db_batch["name"] = db_batch["batchs"][0]["name"]
-        # wrapper batches
-        wrap = {"blocks": [db_batch]}
-        print(db_batch)
+        add_extra_stats(db_batch)
+        db_batch["name"] = "others"
+        db["blocks"].append(db_batch)
         # read the html template
         t = Template(
             filename=os.path.join(REFLOW_DIR, "./common/templates/report.html.mako")
         )
         with open(os.path.join(utils.get_tmp_folder(), "report.html"), "w+") as fp:
-            fp.write(t.render(**wrap))
+            fp.write(t.render(**db))
     # code coverage
     if args.cov:
         relog.warning("Not yet implemented")

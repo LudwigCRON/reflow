@@ -4,6 +4,7 @@
 import os
 import sys
 import time
+import shutil
 
 sys.path.append(os.environ["REFLOW"])
 
@@ -13,14 +14,10 @@ import common.executor as executor
 
 
 DEFAULT_TMPDIR = utils.get_tmp_folder()
-SIM_LOG        = None
+SIM_LOG = None
 
 
-def is_file_timeout(
-        file: str,
-        start: int,
-        max: int = 720,
-        shall_exist: bool = True):
+def is_file_timeout(file: str, start: int, max: int = 720, shall_exist: bool = True):
     file_exists = os.path.exists(file)
     return time.time() - start < max and (file_exists == shall_exist)
 
@@ -28,20 +25,19 @@ def is_file_timeout(
 def simulation_finished(log_file: str):
     with open(log_file, "r+") as fp:
         for line in fp:
-            l = line.lower().replace('\x00', '')
+            l = line.lower().replace("\x00", "")
             if "total elapsed time:" in l:
                 return True
     return False
 
 
-def watch_log(asc: str):
-    log_file = asc.replace(".asc", ".log")
+def watch_log(log_file: str):
     # remove previous execution log file
     if os.path.exists(log_file):
         os.remove(log_file)
     t_start = time.time()
     # wait log file created
-    while is_file_timeout(log_file, t_start, max=30, shall_exist=False):
+    while is_file_timeout(log_file, t_start, max=15, shall_exist=False):
         time.sleep(1)
     if not os.path.exists(log_file):
         relog.error("No simulation log file found")
@@ -59,21 +55,20 @@ def run(asc: str):
     os.makedirs(DEFAULT_TMPDIR, exist_ok=True)
     # use the appropriate program
     # depending on the platform
+    log = asc.replace(".asc", ".log")
     if sys.platform == "darwin":
         ltspice = "/Applications/LTspice.app/Contents/MacOS/LTspice"
-    elif sys.platform == "unix":
-        ltspice = "wine XVIIx64.exe"
+    elif sys.platform == "unix" or "linux" in sys.platform:
+        ltspice = 'wine "%s"' % shutil.which("XVIIx64.exe")
+        asc = "z:%s" % asc
     else:
         ltspice = "XVIIx64.exe"
     # start the simulation
-    gen = executor.ish_exec(
-        "%s -run %s" % (ltspice, asc), SIM_LOG,
-        MAX_TIMEOUT=300
-    )
+    gen = executor.ish_exec('%s -Run "%s"' % (ltspice, asc), SIM_LOG, MAX_TIMEOUT=300)
     proc = next(gen)
     # watch the log file to determine when
     # the simulation ends
-    sim_done = watch_log(asc)
+    sim_done = watch_log(log)
     if proc:
         proc.kill()
     return 0, not sim_done  # relog.get_stats(SIM_LOG)
