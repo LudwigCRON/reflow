@@ -3,6 +3,7 @@
 
 import os
 import sys
+import shutil
 
 from pathlib import Path
 
@@ -14,7 +15,7 @@ import common.executor as executor
 
 
 DEFAULT_TMPDIR = utils.get_tmp_folder()
-SIM_LOG        = None
+SIM_LOG = None
 
 
 def run(raw: str):
@@ -24,8 +25,9 @@ def run(raw: str):
     # depending on the platform
     if sys.platform == "darwin":
         ltspice = "/Applications/LTspice.app/Contents/MacOS/LTspice"
-    elif sys.platform == "unix":
-        ltspice = "wine XVIIx64.exe"
+    elif sys.platform == "unix" or "linux" in sys.platform:
+        ltspice = 'wine "%s"' % shutil.which("XVIIx64.exe")
+        raw = "z:%s" % raw
     else:
         ltspice = "XVIIx64.exe"
     # start the simulation
