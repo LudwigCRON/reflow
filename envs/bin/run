@@ -11,6 +11,7 @@ import argparse
 from pathlib import Path
 from datetime import datetime
 from importlib import import_module
+from importlib.util import spec_from_file_location, module_from_spec
 
 from mako.template import Template
 
@@ -21,6 +22,7 @@ CURRENT_DIR = os.getcwd()
 # define the path where is stored the flow
 REFLOW_DIR = os.environ["REFLOW"]
 sys.path.append(REFLOW_DIR)
+sys.path.append(CURRENT_DIR)
 
 import common.utils as utils
 import common.relog as relog
@@ -83,6 +85,14 @@ def add_extra_stats(db_batch: dict):
     )
     db_batch["coverage"] = sum((1 for sim in db_batch["covs"] if sim.get("errors", 0) == 0))
     db_batch["lint"] = sum((1 for sim in db_batch["lints"] if sim.get("errors", 0) == 0))
+
+
+def import_file(module_name, file, location):
+    spec = spec_from_file_location(module_name, os.path.join(location, file))
+    module = module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 if __name__ == "__main__":
@@ -241,13 +251,27 @@ if __name__ == "__main__":
             relog.error("Not yet implementd mixed signal simulation")
         # execute simulation
         t_start = time.time() * 1000.0
-        stats = simulator.main(files, params)
+        warnings, errors = simulator.main(files, params)
+        if "POST_SIM" in params:
+            scripts = params.get("POST_SIM")
+            if IS_ANA_SIM:
+                raw_parser = import_file(
+                    "raw_parser",
+                    "%s.py" % config["ANA_WAVEFORM_PARSER"],
+                    os.path.join(REFLOW_DIR, "./analog/tools/parsers/"),
+                )
+                waves = raw_parser.load_raw(CURRENT_DIR)
+                for script in scripts:
+                    s = import_file("tmp", script, CURRENT_DIR)
+                    w, e = s.main(waves)
+                    warnings += w
+                    errors += e
         t_end = time.time() * 1000.0
         # store statistics
         with open(os.path.join(utils.get_tmp_folder(), "./sim.stats"), "w+") as fp:
             fp.write("%s\n" % datetime.now())
-            fp.write("Warnings: %d\n" % stats[0])
-            fp.write("Errors: %d\n" % stats[1])
+            fp.write("Warnings: %d\n" % warnings)
+            fp.write("Errors: %d\n" % errors)
             fp.write("Sim. Time: %d\n" % (t_end - t_start))
     # show waveforms
     if args.view_sim:
