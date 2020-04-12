@@ -199,9 +199,9 @@ if __name__ == "__main__":
             relog.error("cannot lint mixed signal or analog simulations")
             exit(0)
         # load the simulator script
-        tool_path = utils.find_tool(config["DIG_SIMULATOR_TOOL"])
+        tool_path = utils.find_tool(config["DIG_LINTER_TOOL"])
         sys.path.append(os.path.dirname(tool_path))
-        linter = import_module(config["DIG_SIMULATOR_TOOL"])
+        linter = import_module(config["DIG_LINTER_TOOL"])
         # execute
         t_start = time.time() * 1000.0
         stats = linter.main(files, params, lint=True)
@@ -325,23 +325,23 @@ if __name__ == "__main__":
         # read other sims
         db_batch = {"sims": [], "lints": [], "covs": []}
         for stats_path in Path(CURRENT_DIR).rglob("**/*.stats"):
-            if stats_path in read_stat_done:
-                continue
-            type, db_sim = read_sim_stat(stats_path)
-            # aggregate
-            for k, v in db_sim.items():
-                tmp = db_batch[k] if k in db_batch else 0
-                if k != "name":
-                    try:
-                        db_batch[k] = float(v) + tmp
-                    except ValueError:
-                        relog.error("%s values should be number" % stats_path)
-            read_stat_done.append(stats_path)
-            if type != "batch":
-                db_batch["%ss" % type].append(db_sim)
+            if stats_path not in read_stat_done and "batch.stats" not in str(stats_path):
+                type, db_sim = read_sim_stat(stats_path)
+                # aggregate
+                for k, v in db_sim.items():
+                    tmp = db_batch[k] if k in db_batch else 0
+                    if k != "name":
+                        try:
+                            db_batch[k] = float(v) + tmp
+                        except ValueError:
+                            relog.error("%s values should be number" % stats_path)
+                read_stat_done.append(stats_path)
+                if type != "batch":
+                    db_batch["%ss" % type].append(db_sim)
         # add some stats to the db
         add_extra_stats(db_batch)
         db_batch["name"] = "others"
+        print(db_batch)
         db["blocks"].append(db_batch)
         # read the html template
         t = Template(

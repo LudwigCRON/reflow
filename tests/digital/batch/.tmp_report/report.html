@@ -1,0 +1,151 @@
+
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        :root,
+        html {
+            font-family: Lato, Arial, Helvetica;
+        }
+
+        summary {
+            margin: 0;
+            padding: 0.125rem 1rem;
+            background: #65BBA9;
+            color: #FFF;
+            font-size: 1.125rem;
+            text-transform: uppercase;
+        }
+
+        details {
+            margin: 1rem 0;
+            padding: 0;
+        }
+
+        details h3 {
+            padding: 0.125rem;
+            background: #CCC;
+            font-size: 1rem;
+        }
+
+        details h3~* {
+            margin-bottom: 1rem;
+        }
+
+        details h3:not(:first-child) {
+            margin: 0;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%
+        }
+
+        thead,
+        th {
+            background: #CCC;
+            border: 0;
+        }
+
+        tr:nth-child(2n+1) {
+            background: #EEE;
+        }
+
+        td:first-child {
+            text-align: left;
+            padding-left: 1em;
+        }
+
+        td {
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Saturday, 11. April 2020 20:36</h1>
+    <table>
+        <thead>
+            <th>name</th>
+            <th>lint</th>
+            <th>simulation</th>
+            <th>coverage</th>
+            <th>total time</th>
+        </thead>
+        <tbody>
+            <tr>
+                <td>
+                    <a href="#batch">
+                        batch
+                    </a>
+                </td>
+                <td>0/0</td>
+                <td>6/6</td>
+                <td>0/0</td>
+                <td>0.507s</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <details id="batch" open>
+        <summary>
+            batch
+        </summary>
+        <h3>Lint</h3>
+        <div class="warnings">No lints</div>
+
+        <h3>Simulation</h3>
+        <table>
+            <thead>
+                <th>id</th>
+                <th>warnings</th>
+                <th>errors</th>
+                <th>total time</th>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>s2</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>0.10s</td>
+                </tr>
+                <tr>
+                    <td>tb</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>0.10s</td>
+                </tr>
+                <tr>
+                    <td>youpi</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>0.9s</td>
+                </tr>
+                <tr>
+                    <td>s</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>0.10s</td>
+                </tr>
+                <tr>
+                    <td>fast_clock</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>0.10s</td>
+                </tr>
+                <tr>
+                    <td>UFC</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>0.11s</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>Code coverage</h3>
+        <div class="warnings">No coverage simulations</div>
+    </details>
+</body>
+
+</html>
