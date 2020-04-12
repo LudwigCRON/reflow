@@ -57,9 +57,18 @@ def read_sim_stat(path: str):
             return v.strip()
 
         db_sim = {k: try_parse(v) for k, v in db_sim.items()}
-        db_sim["total_time"] = db_sim.pop("Sim. Time")
-        db_sim["warnings"] = db_sim.pop("Warnings")
-        db_sim["errors"] = db_sim.pop("Errors")
+        if "Sim. Time" in db_sim:
+            db_sim["total_time"] = db_sim.pop("Sim. Time")
+        else:
+            db_sim["total_time"] = 0
+        if "Warnings" in db_sim:
+            db_sim["warnings"] = db_sim.pop("Warnings")
+        else:
+            db_sim["warnings"] = 0
+        if "Errors" in db_sim:
+            db_sim["errors"] = db_sim.pop("Errors")
+        else:
+            db_sim["errors"] = 0
         db_sim["name"] = block
         print(db_sim)
     return type, db_sim
@@ -184,6 +193,11 @@ if __name__ == "__main__":
         # run lint
         relog.step("Listing files")
         files, params = read_sources.read_from(CURRENT_DIR)
+        # determine the simulation type
+        IS_DIG_SIM = all((read_sources.is_digital(file) for file, _ in files))
+        if not IS_DIG_SIM:
+            relog.error("cannot lint mixed signal or analog simulations")
+            exit(0)
         # load the simulator script
         tool_path = utils.find_tool(config["DIG_SIMULATOR_TOOL"])
         sys.path.append(os.path.dirname(tool_path))
@@ -337,7 +351,31 @@ if __name__ == "__main__":
             fp.write(t.render(**db))
     # code coverage
     if args.cov:
-        relog.warning("Not yet implemented")
+        # define working directory
+        os.environ["WORK_DIR"] = os.path.join(CURRENT_DIR, "./.tmp_cov/")
+        # run simulation
+        relog.step("Listing files")
+        files, params = read_sources.read_from(CURRENT_DIR)
+        # determine the simulation type
+        IS_DIG_SIM = all((read_sources.is_digital(file) for file, _ in files))
+        # load the simulator script
+        if IS_DIG_SIM:
+            tool_path = utils.find_tool(config["DIG_COVERAGE_TOOL"])
+            sys.path.append(os.path.dirname(tool_path))
+            coverage = import_module(config["DIG_COVERAGE_TOOL"])
+        else:
+            relog.error("Not yet implementd mixed signal or analog simulations")
+            exit(0)
+        # execute simulation
+        t_start = time.time() * 1000.0
+        stats = coverage.main(files, params)
+        t_end = time.time() * 1000.0
+        # store statistics
+        with open(os.path.join(utils.get_tmp_folder(), "./cov.stats"), "w+") as fp:
+            fp.write("%s\n" % datetime.now())
+            fp.write("Warnings: %d\n" % stats[0])
+            fp.write("Errors: %d\n" % stats[1])
+            fp.write("Sim. Time: %d\n" % (t_end - t_start))
     # view coverage
     if args.view_cov:
         relog.warning("Not yet implemented")

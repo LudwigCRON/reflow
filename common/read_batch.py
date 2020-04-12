@@ -222,7 +222,7 @@ def run(
                                 fp.write(f"{option}={values}\n")
             # select which simulations should be performed
             batch_options = [
-                "sim" if sim_only else "",
+                "sim",
                 "cov" if cov_only else "",
                 "lint" if lint_only else "",
             ]
@@ -235,18 +235,18 @@ def run(
                 sim_only, cov_only, lint_only = True, True, True
             # run the simulations
             if os.path.exists(b):
-                executor.sh_exec(
-                    "run -c batch %s" % (" ".join(batch_options)),
-                    CWD=p,
-                    ENV=os.environ.copy(),
-                )
+                for batch_option in batch_options:
+                    if batch_option:
+                        executor.sh_exec(
+                            "run batch %s" % batch_option, CWD=p, ENV=os.environ.copy(),
+                        )
             else:
                 if sim_only and s in [SimType.SIMULATION, SimType.ALL]:
-                    executor.sh_exec("run -c sim", CWD=o, ENV=os.environ.copy())
+                    executor.sh_exec("run sim", CWD=o, ENV=os.environ.copy())
                 if cov_only and s in [SimType.COVERAGE, SimType.ALL]:
-                    executor.sh_exec("run -c cov", CWD=o, ENV=os.environ.copy())
+                    executor.sh_exec("run cov", CWD=o, ENV=os.environ.copy())
                 if lint_only and s in [SimType.LINT, SimType.ALL]:
-                    executor.sh_exec("run -c lint", CWD=o, ENV=os.environ.copy())
+                    executor.sh_exec("run lint", CWD=o, ENV=os.environ.copy())
 
 
 def main(cwd, sim_only: bool = False, cov_only: bool = False, lint_only: bool = False):

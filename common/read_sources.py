@@ -10,24 +10,12 @@ from collections import defaultdict
 import common.verilog as verilog
 
 TYPES = {
-    "VERILOG_AMS": [
-        ".vams"
-    ],
-    "VERILOG": [
-        ".v", ".vh", ".va"
-    ],
-    "SYSTEM_VERILOG": [
-        ".sv", ".svh"
-    ],
-    "ASSERTIONS": [
-        ".sva"
-    ],
-    "ANALOG": [
-        ".scs", ".cir", ".asc", ".sp"
-    ],
-    "LIBERTY": [
-        ".lib"
-    ]
+    "VERILOG_AMS": [".vams"],
+    "VERILOG": [".v", ".vh", ".va"],
+    "SYSTEM_VERILOG": [".sv", ".svh"],
+    "ASSERTIONS": [".sva"],
+    "ANALOG": [".scs", ".cir", ".asc", ".sp"],
+    "LIBERTY": [".lib"],
 }
 
 
@@ -42,7 +30,7 @@ def get_path(path: str, base: str = "") -> str:
         return os.path.realpath(os.path.join(base, path))
     # otherwise absolute path on unix os or to digital platform
     p = path[1:]
-    first_dir = p.split('/', 1)[0] if "/" in p else p
+    first_dir = p.split("/", 1)[0] if "/" in p else p
     # suppose it's absolute path on unix os
     # find a common section between base and path
     b = base.lower()
@@ -55,9 +43,9 @@ def get_path(path: str, base: str = "") -> str:
     if i >= 0:
         return os.path.join(
             base[: i + len(platform)],
-            "digital" if is_digital(base) else
-            "analog" if is_analog(base) else "mixed",
-            path[1:])
+            "digital" if is_digital(base) else "analog" if is_analog(base) else "mixed",
+            path[1:],
+        )
     return path
 
 
@@ -70,7 +58,7 @@ def resolve_includes(files: list) -> list:
             # iterate through include statement detected
             for inc in verilog.find_includes(file):
                 # resolve the path and store it
-                includes.append(get_path('/' + inc, file))
+                includes.append(get_path("/" + inc, file))
     # return the list of include to only
     # have non redundante parent directory
     includes = list(set(map(os.path.dirname, includes)))
@@ -98,8 +86,8 @@ class Node:
         self.edges.append(node)
 
     def describe(self):
-        print(self.name + ': ')
-        print(''.join(['-'] * (len(self.name) + 2)))
+        print(self.name + ": ")
+        print("".join(["-"] * (len(self.name) + 2)))
         for edge in self.edges:
             if "Sources.list" in edge.name:
                 edge.describe()
@@ -136,15 +124,23 @@ def evaluate_time(num: str, unit: str) -> float:
     parse the timescale or other time expressed in the format \\d\\s*[fpnum]?s
     """
     if isinstance(num, str):
-        n = float(''.join([c for c in num if c in "0123456789."]))
+        n = float("".join([c for c in num if c in "0123456789."]))
     else:
         n = num
     unit = unit.strip().lower()
-    u = 1e-15 if unit == "fs" else \
-        1e-12 if unit == "ps" else \
-        1e-09 if unit == "ns" else \
-        1e-06 if unit == "us" else \
-        1e-03 if unit == "ms" else 1.0
+    u = (
+        1e-15
+        if unit == "fs"
+        else 1e-12
+        if unit == "ps"
+        else 1e-09
+        if unit == "ns"
+        else 1e-06
+        if unit == "us"
+        else 1e-03
+        if unit == "ms"
+        else 1.0
+    )
     return n * u
 
 
@@ -206,12 +202,12 @@ def read_sources(filepath: str, graph: dict = {}, depth: int = 0):
             if line.strip():
                 # dedicated mod
                 if "@" in line:
-                    line = line.split('@')[0]
+                    line = line.split("@")[0]
                 path = get_path(line.strip(), os.path.dirname(filepath))
                 if not is_parameter(line):
                     # rules name is the file
                     if is_rules(line):
-                        fp = line.split(':')[0]
+                        fp = line.split(":")[0]
                         graph[fp] = Node(fp)
                         no.addEdge(graph[fp])
                     # add the file
@@ -224,11 +220,11 @@ def read_sources(filepath: str, graph: dict = {}, depth: int = 0):
                         no.addEdge(n)
                 # add value to parameter
                 elif "+=" in line:
-                    a, b = line.split('+=', 1)
+                    a, b = line.split("+=", 1)
                     no.params[a.strip()].append(b.strip())
                 # update a parameter
                 elif "=" in line:
-                    a, b = line.split('=', 1)
+                    a, b = line.split("=", 1)
                     no.params[a.strip()] = [b.strip()]
         # if in recursion
         if depth > 0:
@@ -302,9 +298,10 @@ def read_from(sources_list: str, no_logger: bool = False, no_stdout: bool = True
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Process some integers.')
+    parser = argparse.ArgumentParser(description="Process some integers.")
     parser.add_argument("-i", "--input", type=str, help="list of input files")
-    parser.add_argument("-nl", "--no-logger",
-                        action="store_true", help="already include logger macro")
+    parser.add_argument(
+        "-nl", "--no-logger", action="store_true", help="already include logger macro"
+    )
     args = parser.parse_args()
     read_from(args.input, args.no_logger, False)

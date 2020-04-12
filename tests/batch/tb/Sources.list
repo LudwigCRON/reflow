@@ -1,1 +1,2 @@
 tb.sv
+COV_MODULES=tb
