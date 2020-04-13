@@ -1,0 +1,69 @@
+* z:\home\ludwigcron\Projects\reflow\tests\analog\ltspice\ota\tc_gain.asc
+XX1 VDDA1V8 0 N001 N002 Voutp Voutn ping-pong-ota
+V1 VDDA1V8 0 {VDDA}
+V2 Vind 0 PULSE({-Vmax} {Vmax} 0 1n 1n 9n 20n)
+C1 0 Voutp {Cload}
+C2 0 Voutn {Cload}
+XX2 ind Vincm N001 N002 diff2se
+V3 Vincm 0 {Vincm}
+E1 Voutd 0 Voutp Voutn 1
+E2 ind 0 Vind Voutd 1
+
+* block symbol definitions
+.subckt ping-pong-ota VDDA1V8 VSSA1V8 Inp Inn Outp Outn
+M1 N007 biasn VSSA1V8 VSSA1V8 TSMC180nmN l=540n w=1u m=8
+M2 biasn biasn VSSA1V8 VSSA1V8 TSMC180nmN l=540n w=1u
+M3 N002 Inn N003 N003 TSMC180nmN l=180n w=1u m=16
+M4 N001 Inp N003 N003 TSMC180nmN l=180n w=1u m=16
+I1 VDDA1V8 biasn 16µ
+M5 Outn V1p N004 N004 TSMC180nmN l=180n w=1u m=32
+M6 Outp V1n N004 N004 TSMC180nmN l=180n w=1u m=32
+M7 N004 biasn VSSA1V8 VSSA1V8 TSMC180nmN l=540n w=1u m=32
+M8 VDDA1V8 biasp1cm N002 VDDA1V8 TSMC180nmP l=540n w=1u m=4
+M9 VDDA1V8 biasp1cm N001 VDDA1V8 TSMC180nmP l=540n w=1u m=4
+M12 VDDA1V8 biasp biasp VDDA1V8 TSMC180nmP l=540n w=1u m=1
+I2 biasp2 VSSA1V8 16µ
+M10 N006 biasn VSSA1V8 VSSA1V8 TSMC180nmN l=540n w=1u m=2
+M11 V1p biasn N006 N006 TSMC180nmN l=540n w=1u m=2
+M13 N005 biasn VSSA1V8 VSSA1V8 TSMC180nmN l=540n w=1u m=2
+M14 V1n biasn N005 N005 TSMC180nmN l=540n w=1u m=2
+M15 N001 biasp2 V1n N001 TSMC180nmP l=360n w=1u m=5
+M16 N002 biasp2 V1p N002 TSMC180nmP l=360n w=1u m=5
+M17 biasp biasp2 biasp2 biasp TSMC180nmP l=540n w=1u m=1
+M18 N003 biasn N007 N007 TSMC180nmN l=540n w=1u m=8
+M19 VDDA1V8 biaspcm Outp VDDA1V8 TSMC180nmP l=540n w=1u m=16
+M20 VDDA1V8 biaspcm Outn VDDA1V8 TSMC180nmP l=540n w=1u m=16
+E1 N008 V1n V1p 0 1
+E2 N009 Outn Outp 0 1
+E3 biaspcm biasp N010 outd -1
+R1 VDDA1V8 N010 10k
+R2 N010 VSSA1V8 10k
+E4 biasp1cm biasp N011 v1d -1
+R3 VDDA1V8 N011 10k
+R4 N011 VSSA1V8 10k
+E5 v1d 0 N008 0 0.5
+E6 outd 0 N009 0 0.5
+C1 Outn V1p {Cc}
+C2 Outp V1n {Cc}
+.lib ./tsmc180nmcmos.lib
+.param Cc 150f
+.ends ping-pong-ota
+
+.subckt diff2se vind vincm voutp voutn
+E1 voutp vincm vind 0 0.5
+E2 voutn vincm vind 0 -0.5
+.ends diff2se
+
+.model NMOS NMOS
+.model PMOS PMOS
+.lib C:\users\ludwigcron\My Documents\LTspiceXVII\lib\cmp\standard.mos
+.param Cload 500f
+.param VDDA 1.8
+.param Vincm {VDDA/2}
+.tran 0 4u 3.9u
+* Parameters
+* Stimuli
+* DUT
+.param Vmax 0.5
+.backanno
+.end
