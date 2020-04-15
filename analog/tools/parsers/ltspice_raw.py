@@ -115,6 +115,15 @@ def load_raw(filename):
     nb_pts = ret["no_points"]
     data, freq, time = [], None, None
 
+    # read number of steps in the log file
+    nb_steps = 0
+    with open(filename.replace(".raw", ".log"), "r+") as fp:
+        for line in fp:
+            if line.startswith(".step"):
+                nb_steps += 1
+    ret["nb_steps"] = nb_steps
+    steps_indices = []
+
     if mode == "FFT" or mode == "AC":
         data = np.fromfile(filename, dtype=np.complex128, offset=binary_index)
         freq = np.abs(data[::nb_vars])
@@ -127,7 +136,7 @@ def load_raw(filename):
         buf_length = nb_pts * (nb_vars + 1) * 4
         # check file size to know if stepped simulation
         is_stepped = os.stat(filename).st_size > buf_length + binary_index
-        print(f"stepped simulation: {is_stepped}")
+        print(f"stepped simulation: {nb_steps}")
         with open(filename, "rb") as fp:
             # read data
             fp.seek(binary_index)
@@ -136,9 +145,16 @@ def load_raw(filename):
             time = []
             for i in range(nb_pts):
                 fp.seek(binary_index + i * (nb_vars + 1) * 4)
-                time.append(struct.unpack("d", fp.read(8))[0])
+                t = struct.unpack("d", fp.read(8))[0]
+                time.append(t)
+                if i > 0 and t == 0:
+                    steps_indices.append(i)
+            steps_indices.append(nb_pts)
         # reshape data
-        data = np.reshape(np.array(data), (nb_pts, nb_vars + 1))
+        data = np.array(data).reshape((nb_pts, nb_vars + 1))
+    ret["steps_idx"] = [
+        (0, j) if i == 0 else (steps_indices[i - 1], j) for i, j in enumerate(steps_indices)
+    ]
     ret["values"] = {
         ret["vars"][i - 1].get("name", ""): data[:, i] for i in range(2, nb_vars)
     }

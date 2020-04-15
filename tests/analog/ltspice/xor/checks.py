@@ -4,10 +4,16 @@
 import os
 import sys
 
+import matplotlib
+
+matplotlib.use("tkAgg")
+import matplotlib.pyplot as plt
+
 sys.path.append(os.environ["REFLOW"])
 
 import common.series as series
 import common.relog as relog
+import common.utils as utils
 
 
 def main(db):
@@ -21,6 +27,22 @@ def main(db):
     # check results V(out) = V(out_ref)
     vout = series.Series(time, db["values"].get("V(q)"))
     vout_ref = series.Series(time, db["values"].get("V(q_ref)"))
+
+    nb_steps = db["nb_steps"]
+    steps_idx = db["steps_idx"]
+
+    utils.default_plot_style()
+    plt.figure(figsize=(4, min(3, nb_steps * 1.5)))
+    for i, idxs in enumerate(steps_idx):
+        l, h = idxs
+        plt.subplot(311 + i)
+        plt.plot(vout_ref.x[l:h] * 1e9, vout_ref.y[l:h])
+        plt.plot(vout.x[l:h] * 1e9, vout.y[l:h])
+        plt.xlabel("Time [ns]")
+        plt.ylabel("Voltage [V]")
+    plt.tight_layout()
+    plt.savefig("./.tmp_sim/xor.svg")
+
     tolerance = (vout_ref.max_value() - vout_ref.min_value()) * 0.01
     for t_change in crossing_times:
         t_check = t_change + 1.5e-9
