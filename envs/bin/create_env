@@ -8,7 +8,8 @@ PYTHON=$(which python3)
 # calculate environment directory
 # from the current one
 CURRENT_FILE=$(realpath ${BASH_SOURCE[0]})
-BASE_ENV=$(dirname $(dirname ${CURRENT_FILE}))/reflow
+BIN_DIR=$(dirname ${CURRENT_FILE})
+BASE_ENV=$(dirname ${BIN_DIR})/reflow
 
 # check virtualenv is installed
 # otherwise install it to prevent environment polution
@@ -42,11 +43,14 @@ REFLOW=$(dirname $(dirname ${BASE_ENV}))
 # add for bash based env
 echo "# Add base path of ReFlow" >> ${BASE_ENV}/bin/activate
 echo "export REFLOW=${REFLOW}" >> ${BASE_ENV}/bin/activate
+echo "export PATH=${BIN_DIR}:\${PATH}" >> ${BASE_ENV}/bin/activate
 # add for csh based env
 sed -i 's/rehash//' ${BASE_ENV}/bin/activate.csh
 echo "# Add base path of ReFlow" >> ${BASE_ENV}/bin/activate.csh
 echo "setenv REFLOW=${REFLOW}" >> ${BASE_ENV}/bin/activate.csh
+echo "setenv PATH=${BIN_DIR}:\${PATH}" >> ${BASE_ENV}/bin/activate.csh
 echo "rehash" >> ${BASE_ENV}/bin/activate.csh
 # add for python
 echo "# Add base path of ReFlow" >> ${BASE_ENV}/bin/activate_this.py
-echo "os.environ[\"REFLOW\"] = ${REFLOW}" >> ${BASE_ENV}/bin/activate_this.py
+echo "os.environ[\"REFLOW\"] = \"${REFLOW}\"" >> ${BASE_ENV}/bin/activate_this.py
+echo "sys.path.append(\"${BIN_DIR}\")" >> ${BASE_ENV}/bin/activate_this.py

@@ -4,6 +4,7 @@
 import os
 import sys
 import time
+import numpy
 import signal
 import shutil
 import argparse
@@ -94,6 +95,35 @@ def import_file(module_name, file, location):
     spec.loader.exec_module(module)
     return module
 
+
+def launch_tool(
+    tool_name: str, stats_name: str, callbacks: tuple = (None, None), *args, **kwargs
+):
+    # find the tool
+    tool_path = utils.find_tool(tool_name)
+    sys.path.append(os.path.dirname(tool_path))
+    # load it
+    tool = import_module(tool_name)
+    # execute it and time it
+    t_start = time.time() * 1000.0
+    pre, post = callbacks
+    warnings_errors = []
+    if pre:
+        warnings_errors.append(pre(*args, **kwargs))
+    warnings_errors.append(tool.main(*args, **kwargs))
+    if post:
+        warnings_errors.append(post(*args, **kwargs))
+    t_end = time.time() * 1000.0
+    # store statistics
+    warnings, errors = numpy.nansum(warnings_errors, axis=0)
+    with open(os.path.join(utils.get_tmp_folder(), "./%s.stats" % stats_name), "w+") as fp:
+        fp.write("%s\n" % datetime.now())
+        fp.write("Warnings: %d\n" % warnings)
+        fp.write("Errors: %d\n" % errors)
+        fp.write("Sim. Time: %d\n" % (t_end - t_start))
+
+
+NO_CALLBACKS = (None, None)
 
 if __name__ == "__main__":
     # signal handling (kill, ctrl+c, ...)
@@ -208,19 +238,10 @@ if __name__ == "__main__":
         if not IS_DIG_SIM:
             relog.error("cannot lint mixed signal or analog simulations")
             exit(0)
-        # load the simulator script
-        tool_path = utils.find_tool(config["DIG_LINTER_TOOL"])
-        sys.path.append(os.path.dirname(tool_path))
-        linter = import_module(config["DIG_LINTER_TOOL"])
-        # execute
-        t_start = time.time() * 1000.0
-        stats = linter.main(files, params, lint=True)
-        # store statistics
-        with open(os.path.join(utils.get_tmp_folder(), "./lint.stats"), "w+") as fp:
-            fp.write("%s\n" % datetime.now())
-            fp.write("Warnings: %d\n" % stats[0])
-            fp.write("Errors: %d\n" % stats[1])
-            fp.write("Sim. Time: %d\n" % (t_end - t_start))
+        # launch the linter without callback
+        launch_tool(
+            config["DIG_LINTER_TOOL"], "lint", NO_CALLBACKS, files, params, lint=True
+        )
     # display hierarchy of the design
     if args.tree:
         relog.step("Listing files")
@@ -240,39 +261,37 @@ if __name__ == "__main__":
         IS_ANA_SIM = all((read_sources.is_analog(file) for file, _ in files))
         # load the simulator script
         if IS_DIG_SIM and not IS_ANA_SIM:
-            tool_path = utils.find_tool(config["DIG_SIMULATOR_TOOL"])
-            sys.path.append(os.path.dirname(tool_path))
-            simulator = import_module(config["DIG_SIMULATOR_TOOL"])
+            tool_name = config["DIG_SIMULATOR_TOOL"]
         elif IS_ANA_SIM and not IS_DIG_SIM:
-            tool_path = utils.find_tool(config["ANA_SIMULATOR_TOOL"])
-            sys.path.append(os.path.dirname(tool_path))
-            simulator = import_module(config["ANA_SIMULATOR_TOOL"])
+            tool_name = config["ANA_SIMULATOR_TOOL"]
         else:
             relog.error("Not yet implementd mixed signal simulation")
-        # execute simulation
-        t_start = time.time() * 1000.0
-        warnings, errors = simulator.main(files, params)
-        if "POST_SIM" in params:
-            scripts = params.get("POST_SIM")
-            if IS_ANA_SIM:
+            exit(0)
+        # create callbacks
+        def _callbacks():
+            scripts = params.get("POST_SIM", [])
+            pre_sim = None
+
+            def post_sim(*args, **kwargs):
+                warnings_errors = []
                 raw_parser = import_file(
                     "raw_parser",
                     "%s.py" % config["ANA_WAVEFORM_PARSER"],
                     os.path.join(REFLOW_DIR, "./analog/tools/parsers/"),
                 )
-                waves = raw_parser.load_raw(CURRENT_DIR)
+                cwd = CURRENT_DIR.replace(".tmp_batch/", "")
+                waves = raw_parser.load_raw(cwd)
                 for script in scripts:
-                    s = import_file("tmp", script, CURRENT_DIR)
-                    w, e = s.main(waves)
-                    warnings += w
-                    errors += e
-        t_end = time.time() * 1000.0
-        # store statistics
-        with open(os.path.join(utils.get_tmp_folder(), "./sim.stats"), "w+") as fp:
-            fp.write("%s\n" % datetime.now())
-            fp.write("Warnings: %d\n" % warnings)
-            fp.write("Errors: %d\n" % errors)
-            fp.write("Sim. Time: %d\n" % (t_end - t_start))
+                    s = import_file("tmp", script, cwd)
+                    warnings_errors.append(s.main(waves))
+                return numpy.nansum(warnings_errors, axis=0)
+
+            if IS_ANA_SIM:
+                return (pre_sim, post_sim)
+            return NO_CALLBACKS
+
+        # execute simulation
+        launch_tool(tool_name, "sim", _callbacks(), files, params)
     # show waveforms
     if args.view_sim:
         # define working directory
@@ -285,27 +304,23 @@ if __name__ == "__main__":
         IS_ANA_SIM = all((read_sources.is_analog(file) for file, _ in files))
         # load the simulator script
         if IS_DIG_SIM and not IS_ANA_SIM:
-            tool_path = utils.find_tool(config["DIG_WAVEFORM_VIEWER"])
-            sys.path.append(os.path.dirname(tool_path))
-            waveform = import_module(config["DIG_WAVEFORM_VIEWER"])
-            waveform.main("vcd")
+            tool_name = config["DIG_WAVEFORM_VIEWER"]
+            wave_ext = "vcd"
         elif IS_ANA_SIM and not IS_DIG_SIM:
-            tool_path = utils.find_tool(config["ANA_WAVEFORM_VIEWER"])
-            sys.path.append(os.path.dirname(tool_path))
-            waveform = import_module(config["ANA_WAVEFORM_VIEWER"])
-            waveform.main("raw")
+            tool_name = config["ANA_WAVEFORM_VIEWER"]
+            wave_ext = "raw"
         else:
             relog.error("Not yet implementd mixed signal simulation")
+            exit(0)
+        # view the waveforms
+        launch_tool(tool_name, "view", NO_CALLBACKS, wave_ext)
     # synthesis
     if args.synth:
         relog.step("Listing files")
         files, params = read_sources.read_from(CURRENT_DIR)
         # load the simulator script
-        tool_path = utils.find_tool(config["DIG_SYNTHESIS_TOOL"])
-        sys.path.append(os.path.dirname(tool_path))
-        synthesizor = import_module(config["DIG_SYNTHESIS_TOOL"])
-        # execute
-        synthesizor.main(files, params, "verilog")
+        tool_name = config["DIG_SYNTHESIS_TOOL"]
+        launch_tool(tool_name, "synth", NO_CALLBACKS, files, params, "verilog")
     # generate an html report
     if args.report:
         # define working directory
@@ -384,22 +399,12 @@ if __name__ == "__main__":
         IS_DIG_SIM = all((read_sources.is_digital(file) for file, _ in files))
         # load the simulator script
         if IS_DIG_SIM:
-            tool_path = utils.find_tool(config["DIG_COVERAGE_TOOL"])
-            sys.path.append(os.path.dirname(tool_path))
-            coverage = import_module(config["DIG_COVERAGE_TOOL"])
+            tool_name = config["DIG_COVERAGE_TOOL"]
         else:
             relog.error("Not yet implementd mixed signal or analog simulations")
             exit(0)
         # execute simulation
-        t_start = time.time() * 1000.0
-        stats = coverage.main(files, params)
-        t_end = time.time() * 1000.0
-        # store statistics
-        with open(os.path.join(utils.get_tmp_folder(), "./cov.stats"), "w+") as fp:
-            fp.write("%s\n" % datetime.now())
-            fp.write("Warnings: %d\n" % stats[0])
-            fp.write("Errors: %d\n" % stats[1])
-            fp.write("Sim. Time: %d\n" % (t_end - t_start))
+        launch_tool(tool_name, "cov", NO_CALLBACKS, files, params)
     # view coverage
     if args.view_cov:
         relog.warning("Not yet implemented")

@@ -71,27 +71,29 @@ def load_raw(filename):
                 binary_index = f.tell() + 1
                 break
     # get simulation informations
-    pattern = (
-        r"Date:\s*(?P<date>\w.*?\w)\s*"
-        r"Plotname:\s*(?P<plotname>\w.*?\w)\s*"
-        r"Flags:\s*(?P<flags>\w.*?\w)\s*"
-        r"No\. Variables:\s*(?P<no_vars>\d+)\s*"
-        r"No\. Points:\s*(?P<no_points>\d+)\s*"
-        r"Offset:\s*(?P<offset>[\d\.e+-]+)\s*"
-        r"Command:\s*(?P<tool>[\w\s]+)\s*"
-        r"Variables:\s*$(?P<vars>.*)"
+    RE_KEY_VALUE = r"(?P<key>[A-Z][\w \.]+):\s*(?P<value>\w.*\w)"
+    ret = {}
+    matches = re.finditer(RE_KEY_VALUE, "\n".join(header))
+    for match in matches:
+        k, v = match.groups()
+        if "Variables" != k:
+            ret[k.lower().replace(". ", "_")] = v
+    matches = re.search(
+        r"^Variables:\s*(?P<vars>\w.*\w)", "\n".join(header), flags=re.MULTILINE | re.DOTALL
     )
-    m = re.search(pattern, "\n".join(header), re.MULTILINE | re.DOTALL)
-    ret = copy.deepcopy(m.groupdict())
+    ret.update(matches.groupdict())
+    if not ret:
+        relog.error("No information found in raw file")
+        exit(0)
     # normalize
-    ret["no_vars"] = int(ret["no_vars"])
+    ret["tools"] = ret.pop("command")
+    ret["no_vars"] = int(ret.pop("no_variables"))
     ret["no_points"] = int(ret["no_points"])
     ret["offset"] = float(ret["offset"])
 
     # vars
-    vars = m.groupdict()["vars"]
     pattern = r"\s*(?P<idx>\d+)\s+" r"(?P<name>\S+)\s+" r"(?P<type>.*)\s*"
-    m_vars = re.finditer(pattern, vars)
+    m_vars = re.finditer(pattern, ret["vars"])
 
     def transform(i):
         d = i.groupdict()

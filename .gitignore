@@ -5,6 +5,8 @@
 .tmp_cov
 .tmp_lint
 .tmp_batch
+*.raw
+*.log
 # python cache files
 __pycache__
 # do not store the environment
