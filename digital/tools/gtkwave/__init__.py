@@ -26,15 +26,17 @@ def main(format: str = "vcd"):
     relog.step("Open waveforms")
     if sys.platform == "linux" or sys.platform == "linux2":
         # linux
-        executor.sh_exec("gtkwave '%s'" % vcd_path, MAX_TIMEOUT=-1, SHELL=True)
+        print("gtkwave '%s'" % vcd_path)
+        executor.sh_exec("gtkwave '%s'" % vcd_path, MAX_TIMEOUT=-1, SHELL=False)
     elif sys.platform == "darwin":
         # OS X
         executor.sh_exec("open -a gtkwave '%s'" % vcd_path, MAX_TIMEOUT=-1, SHELL=False)
     elif sys.platform == "win32":
         # Windows...
-        executor.sh_exec("gtkwave '%s'" % vcd_path, MAX_TIMEOUT=-1, SHELL=True)
+        executor.sh_exec("gtkwave '%s'" % vcd_path, MAX_TIMEOUT=-1, SHELL=False)
     else:
         relog.error("Unknown operating system")
+    return (0, 0)
 
 
 if __name__ == "__main__":
