@@ -7,7 +7,7 @@ PYTHON=$(which python3)
 
 # calculate environment directory
 # from the current one
-CURRENT_FILE=$(realpath ${BASH_SOURCE[0]})
+CURRENT_FILE=$($PYTHON -c "import os; print(os.path.realpath('${BASH_SOURCE[0]}'))")
 BIN_DIR=$(dirname ${CURRENT_FILE})
 BASE_ENV=$(dirname ${BIN_DIR})/reflow
 
@@ -33,9 +33,6 @@ $PYTHON -m virtualenv "${BASE_ENV}"
 # install modules
 source ${BASE_ENV}/bin/activate
 pip install -r $(dirname ${CURRENT_FILE})/requirements.txt
-
-# copy utils
-cp $(dirname ${CURRENT_FILE})/run ${BASE_ENV}/bin/
 
 # add REFLOW env variable
 # Add base path of ReFlow
