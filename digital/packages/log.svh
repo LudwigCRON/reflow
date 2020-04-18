@@ -19,9 +19,9 @@ COLOR specifies the message color.
 37 set white foreground
 
 */
-`timescale 1ns/100ps
 
 module log_service;
+  integer WARN_COUNT = 0;
   integer ERROR_COUNT = 0;
   string __xstr__;
 
@@ -41,20 +41,22 @@ endmodule
   $write("%c[0m",27);
 
 `define log_Warning(msg) \
+  log_service.WARN_COUNT += 1; \
   $write("%c[1;33m",27); \
   $display("Warning : [%t] %s", $time, msg); \
-  $write("%c[0m",27);
+  #1 $write("%c[0m",27);
 
 `define log_Error(msg) \
-  log_service.ERROR_COUNT = log_service.ERROR_COUNT + 1; \
+  log_service.ERROR_COUNT += 1; \
   $write("%c[1;31m",27); \
   $display("Error   : [%t] %s", $time, msg); \
-  $write("%c[0m",27);
+  #1 $write("%c[0m",27);
 
 `define log_Fatal(msg) \
   $write("%c[1;31m",27); \
   $display("Fatal   : [%t] %s", $time, msg); \
-  $write("%c[0m",27);
+  $write("%c[0m",27); \
+  $finish;
 
 // use $sformat for compatibility since $sformat is
 // not always supported
@@ -65,9 +67,13 @@ endmodule
 
 `define log_Terminate \
   $write("%c[1;37m",27); \
-  if(log_service.ERROR_COUNT > 0) \
-    $display("Simulation Failed with %d Errors", log_service.ERROR_COUNT); \
+  if(log_service.ERROR_COUNT > 0 && log_service.WARN_COUNT > 0) \
+    $display("Simulation Failed with %0d Errors and %0d Warnings", log_service.ERROR_COUNT, log_service.WARN_COUNT); \
+  else if(log_service.ERROR_COUNT > 0) \
+    $display("Simulation Failed with %0d Errors", log_service.ERROR_COUNT); \
+  else if(log_service.WARN_COUNT > 0) \
+    $display("Simulation Failed with %0d Warnings", log_service.WARN_COUNT); \
   else \
     $display("Simulation Successful"); \
   $write("%c[0m",27); \
-  $finish();
+  $finish;
