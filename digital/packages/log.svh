@@ -31,32 +31,32 @@ module log_service;
 endmodule
 
 `define log_Note(msg) \
-  $write("%c[1;32m",27); \
+  begin $write("%c[1;32m",27); \
   $display("Note    : [%t] %s", $time, msg); \
-  $write("%c[0m",27);
+  $write("%c[0m",27); end
 
 `define log_Info(msg) \
-  $write("%c[0;37m",27); \
+  begin $write("%c[0;37m",27); \
   $display("Info    : [%t] %s", $time, msg); \
-  $write("%c[0m",27);
+  $write("%c[0m",27); end
 
 `define log_Warning(msg) \
-  log_service.WARN_COUNT += 1; \
+  begin log_service.WARN_COUNT += 1; \
   $write("%c[1;33m",27); \
   $display("Warning : [%t] %s", $time, msg); \
-  #1 $write("%c[0m",27);
+  #1 $write("%c[0m",27); end
 
 `define log_Error(msg) \
-  log_service.ERROR_COUNT += 1; \
+  begin log_service.ERROR_COUNT += 1; \
   $write("%c[1;31m",27); \
   $display("Error   : [%t] %s", $time, msg); \
-  #1 $write("%c[0m",27);
+  #1 $write("%c[0m",27); end
 
 `define log_Fatal(msg) \
-  $write("%c[1;31m",27); \
+  begin $write("%c[1;31m",27); \
   $display("Fatal   : [%t] %s", $time, msg); \
   $write("%c[0m",27); \
-  $finish;
+  $finish; end
 
 // use $sformat for compatibility since $sformat is
 // not always supported
