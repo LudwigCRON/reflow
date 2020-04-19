@@ -181,6 +181,7 @@ if __name__ == "__main__":
     # load the configuration
     config = utils.read_config(os.environ["CONFIG_PATH"])
     os.environ["TECH_LIB"] = config.get("TECH_LIB", "")
+    os.environ["PLATFORM"] = config.get("PLATFORM", "ganymede")
     # clean tmp files
     if args.clean:
         for work_dir in Path(CURRENT_DIR).rglob("**/.tmp_sim"):

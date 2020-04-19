@@ -36,16 +36,26 @@ def get_path(path: str, base: str = "") -> str:
     b = base.lower()
     i = b.find(first_dir.lower())
     if i >= 0:
-        return base[:i]
-    # in digital platform
+        return os.path.join(base[:i], p)
+    # in platform
     platform = os.getenv("PLATFORM", "ganymede").lower()
     i = b.find(platform)
     if i >= 0:
-        return os.path.join(
+        new_path = os.path.join(
             base[: i + len(platform)],
             "digital" if is_digital(base) else "analog" if is_analog(base) else "mixed",
             path[1:],
         )
+        if os.path.exists(new_path):
+            return new_path
+    # in platform without domain separation
+    new_path = os.path.join(
+        base[: i + len(platform)],
+        path[1:],
+    )
+    if os.path.exists(new_path):
+        return new_path
+    # not known
     return path
 
 
@@ -204,6 +214,7 @@ def read_sources(filepath: str, graph: dict = {}, depth: int = 0):
                 if "@" in line:
                     line = line.split("@")[0]
                 path = get_path(line.strip(), os.path.dirname(filepath))
+                print(line, path)
                 if not is_parameter(line):
                     # rules name is the file
                     if is_rules(line):
