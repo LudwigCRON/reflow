@@ -214,7 +214,6 @@ def read_sources(filepath: str, graph: dict = {}, depth: int = 0):
                 if "@" in line:
                     line = line.split("@")[0]
                 path = get_path(line.strip(), os.path.dirname(filepath))
-                print(line, path)
                 if not is_parameter(line):
                     # rules name is the file
                     if is_rules(line):
