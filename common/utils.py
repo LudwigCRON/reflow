@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 
+# ==== project.config parsing ====
 def read_config(config_file: str):
     config = {}
     reg = re.compile(r"(?P<name>\w+)\s*(\=(?P<value>.+))*")
@@ -22,18 +23,21 @@ def read_config(config_file: str):
     return config
 
 
+# ==== allow run to find a tool ====
 def find_tool(name: str):
     spec = "**/tools/%s" % name
     for file in Path(os.environ["REFLOW"]).rglob(spec):
         return file
 
 
+# ==== get working directory ====
 def get_tmp_folder():
     if "WORK_DIR" in os.environ:
         return os.path.normpath(os.environ["WORK_DIR"])
     return os.path.normpath(os.path.join(os.getcwd(), ".tmp_sim"))
 
 
+# ==== get file and mime-type ====
 def get_sources(src, out: str = None, prefix: str = "") -> tuple:
     """
     list only the files which corresponds to code
@@ -62,6 +66,7 @@ def get_sources(src, out: str = None, prefix: str = "") -> tuple:
     return files, params
 
 
+# ==== default pretty graph for reports ====
 def default_plot_style():
     import matplotlib.style
     import matplotlib as mpl
@@ -98,6 +103,11 @@ ENG_UNITS = {
 }
 
 
+# ==== basic functions needed for parsers ====
+def evaluate_eng_unit(val: str, unit: str):
+    return parse_eng_unit("%s %s" % (val, unit), unit[-1])
+
+
 def parse_eng_unit(s: str, base_unit: str = '', default: float = 1e-12):
     """
     convert eng format '<value> <unit>' in a floating point value
@@ -130,3 +140,35 @@ def parse_eng_unit(s: str, base_unit: str = '', default: float = 1e-12):
         if unit in s:
             return val * scale
     return val
+
+
+# ==== decorators for custom rules ====
+RULES = {}
+
+
+def list_observer(file: str):
+    """
+    list all functions listening for
+    a specific rule applying to the file
+    Args:
+        file (str): file path or name for which looking functions to apply
+    Returns:
+        list of functions
+    """
+    observers = []
+    for rule in RULES.keys():
+        if file.endswith(rule):
+            observers.extend(RULES.get(rule, []))
+    return observers
+
+
+def apply_for(extensions: str):
+    exts = [ext.replace('*', '') for ext in extensions.split("|")]
+
+    def decorator(func):
+        for ext in exts:
+            if ext in RULES:
+                RULES[ext].append(func)
+            else:
+                RULES[ext] = [func]
+    return decorator

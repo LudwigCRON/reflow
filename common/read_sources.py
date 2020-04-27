@@ -5,8 +5,10 @@ import sys
 import argparse
 import traceback
 
-from collections import defaultdict
+from collections import defaultdict, Iterable
 
+import common.rules
+import common.utils as utils
 import common.verilog as verilog
 
 TYPES = {
@@ -19,7 +21,7 @@ TYPES = {
 }
 
 
-# = help in parsing sources.list =
+# ==== help in parsing sources.list ====
 def get_path(path: str, base: str = "") -> str:
     """
     resolve the absolute path of a file in the
@@ -83,7 +85,7 @@ def is_rules(line: str) -> bool:
     return ":" in line
 
 
-# == Dependancy  Resolution ==
+# ==== Dependancy  Resolution ====
 class Node:
     __slots__ = ["name", "edges", "params"]
 
@@ -124,34 +126,6 @@ def resolve_dependancies(node, resolved, unresolved) -> None:
             resolve_dependancies(edge, resolved, unresolved)
     resolved.append(node)
     unresolved.remove(node)
-
-
-# ===== Verilog Parsing ======
-
-
-def evaluate_time(num: str, unit: str) -> float:
-    """
-    parse the timescale or other time expressed in the format \\d\\s*[fpnum]?s
-    """
-    if isinstance(num, str):
-        n = float("".join([c for c in num if c in "0123456789."]))
-    else:
-        n = num
-    unit = unit.strip().lower()
-    u = (
-        1e-15
-        if unit == "fs"
-        else 1e-12
-        if unit == "ps"
-        else 1e-09
-        if unit == "ns"
-        else 1e-06
-        if unit == "us"
-        else 1e-03
-        if unit == "ms"
-        else 1.0
-    )
-    return n * u
 
 
 # ==== mime-type of files ====
@@ -242,7 +216,22 @@ def read_sources(filepath: str, graph: dict = {}, depth: int = 0):
     # resolve dependancies
     resolved = []
     resolve_dependancies(no, resolved, [])
-    return resolved[::-1]
+    # call functions registered in rules
+    ans = []
+    for i, item in enumerate(resolved):
+        for f in utils.list_observer(item.name):
+            tmp = f(item)
+            if tmp:
+                if isinstance(tmp, Iterable):
+                    ans.extend(tmp)
+                else:
+                    ans.append(tmp)
+            else:
+                ans.append(item)
+        else:
+            ans.append(item)
+    # return the value
+    return ans[::-1]
 
 
 def read_from(sources_list: str, no_logger: bool = False, no_stdout: bool = True):
@@ -289,11 +278,11 @@ def read_from(sources_list: str, no_logger: bool = False, no_stdout: bool = True
             ts = verilog.find_timescale(node.name) if is_digital(node.name) else []
             if ts:
                 sn, su, rn, ru = ts[0]
-                if evaluate_time(sn, su) < evaluate_time(*min_ts[0:2]):
+                if utils.evaluate_eng_unit(sn, su) < utils.evaluate_eng_unit(*min_ts[0:2]):
                     min_ts = (sn, su, *min_ts[2:4])
-                if evaluate_time(rn, ru) < evaluate_time(*min_ts[2:4]):
+                if utils.evaluate_eng_unit(rn, ru) < utils.evaluate_eng_unit(*min_ts[2:4]):
                     min_ts = (*min_ts[0:2], rn, ru)
-    if evaluate_time(*min_ts[0:2]) == 1.0:
+    if utils.evaluate_eng_unit(*min_ts[0:2]) == 1.0:
         print("TIMESCALE\t:\t'1ns/100ps'")
         parameters["TIMESCALE"] = "1ns/100ps"
     else:

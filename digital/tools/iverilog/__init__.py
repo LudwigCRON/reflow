@@ -48,7 +48,7 @@ def prepare(files, PARAMS):
         if "TIMESCALE" in PARAMS:
             fp.write("+timescale+%s\n" % PARAMS['TIMESCALE'])
         for file in FILES:
-            if is_digital(file) and get_type(file) not in ["ASSERTIONS"]:
+            if is_digital(file) and get_type(file) not in ["ASSERTIONS", "LIBERTY"]:
                 fp.write("%s\n" % file)
     # estimate appropriate flags
     generation = "verilog-ams" if any(["AMS" in m for m in MIMES]) else \

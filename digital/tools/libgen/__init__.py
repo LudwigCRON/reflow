@@ -170,7 +170,6 @@ def read_description(ws):
         else:
             d = read_description_row(row, headers)
             for k, v in d.items():
-                key = k.lower()
                 if isinstance(description[k], list):
                     description[k].append(v)
                 elif v is not None:
@@ -190,7 +189,7 @@ def read_description(ws):
     return description
 
 
-def create_libs(desc: dict, pins: list, args):
+def create_libs(desc: dict, pins: list, output_dir: str, verbose: bool = False):
     """
     generate a lib file for each corners
     """
@@ -199,21 +198,41 @@ def create_libs(desc: dict, pins: list, args):
     db["area"] = db.pop("block_area_(um2)")
     db["pins"] = pins
     db["types"] = [pin for pin in pins if pin.width > 1]
+    lib_paths = []
     for corner, condition in desc.get("corners", {}).items():
         db["library"] = "%s_%s_%sV_%sC" % (
             desc.get("name_of_the_cell"),
             corner,
             ("%.2f" % condition.get("voltage")).replace('.', '_'),
-            str(condition.get("temperature")).replace('-','m')
+            str(condition.get("temperature")).replace('-', 'm')
         )
         db["corner_name"] = corner
         db["corner"] = condition
-        if args.verbose:
+        if verbose:
             print(db)
+        # create directory if does not exist
+        os.makedirs(output_dir, exist_ok=True)
         # generate lib file
-        _tmp = Template(filename="./template_ana.lib.mako")
-        with open(os.path.join(args.output, "%s.lib" % db["library"]), "w+") as fp:
+        template_file = os.path.join(os.path.dirname(__file__), "./template_ana.lib.mako")
+        _tmp = Template(filename=template_file)
+        lib_path = os.path.join(output_dir, "%s.lib" % db["library"])
+        with open(lib_path, "w+") as fp:
             fp.write(_tmp.render_unicode(**db))
+        lib_paths.append(lib_path)
+    return lib_paths
+
+
+def main(file, output_dir, verbose: bool = False):
+    wb = load_workbook(file, data_only=True)
+    # read corners and extraction informations
+    ws = wb["General"]
+    desc = read_description(ws)
+    # read pins and their timings
+    ws = wb["Timing"]
+    pins = read_timings(ws)
+    # create a lib for each corners
+    libs = create_libs(desc, pins, output_dir, verbose)
+    return libs
 
 
 if __name__ == "__main__":
@@ -223,12 +242,4 @@ if __name__ == "__main__":
     parser.add_argument("-v", "--verbose", action="store_true", default=False)
     args = parser.parse_args()
 
-    wb = load_workbook(args.input, data_only=True)
-    # read corners and extraction informations
-    ws = wb["General"]
-    desc = read_description(ws)
-    # read pins and their timings
-    ws = wb["Timing"]
-    pins = read_timings(ws)
-    # create a lib for each corners
-    create_libs(desc, pins, args)
+    main(args.input, args.output, args.verbose)

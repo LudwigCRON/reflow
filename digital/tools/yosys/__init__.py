@@ -11,8 +11,6 @@ import common.utils as utils
 import common.relog as relog
 import common.executor as executor
 
-from common.read_sources import get_type
-
 
 DEFAULT_TMPDIR = utils.get_tmp_folder()
 SYNTH_LOG      = os.path.join(DEFAULT_TMPDIR, "synthesis.log")
