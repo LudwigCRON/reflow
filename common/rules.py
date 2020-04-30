@@ -5,6 +5,8 @@ import os
 import sys
 import copy
 
+from mako.template import Template
+
 sys.path.append(os.environ["REFLOW"])
 
 import common.utils as utils
@@ -39,4 +41,8 @@ def generate_file(node, *args, **kwargs):
     # get current workking directory
     output_dir = utils.get_tmp_folder()
     # read dependancies
+    db = {"pins": []}
     # generate the template
+    _tmp = Template(filename=node.name)
+    with open(os.path.join(output_dir, node.name.replace(".mako", "")), "w+") as fp:
+        fp.write(_tmp.render_unicode(**db))

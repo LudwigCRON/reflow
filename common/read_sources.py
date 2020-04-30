@@ -5,6 +5,7 @@ import sys
 import argparse
 import traceback
 
+from enum import Enum
 from collections import defaultdict, Iterable
 
 import common.rules
@@ -156,6 +157,68 @@ def check_source_exists(dirpath: str) -> bool:
     return os.path.exists(_)
 
 
+class TokenType(Enum):
+    STRING      = 0
+    SEP         = 1
+    TAG_SEP     = 2
+    PARAM_SEP   = 3
+    INDENT      = 4
+    NEW_LINE    = 5
+
+
+def source_tokenizer(buffer):
+    """
+    generate Sources.list tokens for parsing
+    <string>
+    <string>@<string>
+    <string>=<string>
+    <string>+=<string>
+
+    <string>:
+    <string>
+
+    <string>:
+        <string>
+
+    """
+    for line in buffer:
+        start_index = 0
+        is_blank_from_zero, previous, current = True, '', ''
+        l = line.expandtabs(4)
+        for pos, current in enumerate(l):
+            # check for indentation
+            if current == ' ' and previous in ['', ' '] and start_index == 0:
+                previous = current
+                continue
+            elif current != ' ' and is_blank_from_zero and start_index == 0:
+                yield (TokenType.INDENT, l[:pos])
+                start_index = pos
+            # check for string
+            elif current.isalnum() or current in "/\\._-() []éèàï":
+                previous = current
+                continue
+            # check for separator
+            elif current in "@:=+\n":
+                if l[start_index:pos]:
+                    yield (TokenType.STRING, l[start_index:pos])
+                    start_index = pos + 1
+                # skip + as if can be part of the += token
+                if current in "+":
+                    previous = current
+                    continue
+                # report separator
+                type = TokenType.PARAM_SEP if current == '=' else \
+                       TokenType.TAG_SEP if current == '@' else \
+                       TokenType.NEW_LINE if current == '\n' else TokenType.SEP
+                yield (type, '+=' if previous == '+' and current == '=' else \
+                               '' if current == '\n' else current)
+                start_index = pos + 1
+            previous = current
+            if current != ' ':
+                is_blank_from_zero = False
+    yield (TokenType.STRING, l[start_index:])
+
+
 def read_sources(filepath: str, graph: dict = {}, depth: int = 0):
     """
     create a graph from a source.list file
@@ -180,36 +243,83 @@ def read_sources(filepath: str, graph: dict = {}, depth: int = 0):
     if filepath.endswith("Sources.list"):
         # get lines in memory
         with open(filepath, "r+") as fp:
-            _tmp = fp.readlines()
-        # parse the file
-        for line in _tmp:
-            if line.strip():
-                # dedicated mod
-                if "@" in line:
-                    line = line.split("@")[0]
-                path = get_path(line.strip(), os.path.dirname(filepath))
-                if not is_parameter(line):
-                    # rules name is the file
-                    if is_rules(line):
-                        fp = line.split(":")[0]
-                        graph[fp] = Node(fp)
-                        no.addEdge(graph[fp])
-                    # add the file
-                    elif os.path.isfile(path):
-                        graph[path] = Node(path)
-                        no.addEdge(graph[path])
-                    # is a directory
-                    elif os.path.isdir(path) and check_source_exists(path):
+            tokens = source_tokenizer(fp)
+            # parse the file
+            indent_level = 0
+            string = None
+            parameter_name = None
+            op_increment = False
+            wait_new_line = False
+            last_is_tag = False
+            node_stack = []
+            for type, token in tokens:
+                # indentation management
+                if type == TokenType.INDENT:
+                    indent_level += 1
+                # string or parameter value with '=' or '+='
+                elif type == TokenType.STRING:
+                    if parameter_name is not None:
+                        if op_increment:
+                            no.params[parameter_name].append(token)
+                        else:
+                            no.params[parameter_name] = [token]
+                    # add tag to last node referenced
+                    elif last_is_tag:
+                        if "TAGS" in node_stack[-1].params:
+                            node_stack[-1].params["TAGS"].append(token)
+                        else:
+                            node_stack[-1].params["TAGS"] = [token]
+                    # file / parameter name / directory
+                    else:
+                        string = token
+                        path = get_path(token.strip(), os.path.dirname(filepath))
+                # received '@' so add tag as parameter
+                elif type == TokenType.TAG_SEP:
+                    node_stack.append(Node(path))
+                    last_is_tag = True
+                # received ':' so the file as dependences
+                elif type == TokenType.SEP:
+                    node_stack.append(Node(path))
+                # received '=' or '+=' so previous string is a parameter name
+                elif type == TokenType.PARAM_SEP and not wait_new_line:
+                    parameter_name = string
+                    # create default value for the parameter if not exist
+                    if parameter_name not in no.params:
+                        no.params[parameter_name] = []
+                    # parameter name [=|+=] parameter value till \n
+                    if token == '+=':
+                        op_increment = True
+                    wait_new_line = True
+                    path = None
+                elif type == TokenType.NEW_LINE:
+                    # if directory read the pointed sources.list
+                    if path and os.path.isdir(path) and check_source_exists(path):
                         n, _ = read_sources(path, graph, depth + 1)
-                        no.addEdge(n)
-                # add value to parameter
-                elif "+=" in line:
-                    a, b = line.split("+=", 1)
-                    no.params[a.strip()].append(b.strip())
-                # update a parameter
-                elif "=" in line:
-                    a, b = line.split("=", 1)
-                    no.params[a.strip()] = [b.strip()]
+                        if node_stack:
+                            node_stack[-1].addEdge(n)
+                        else:
+                            no.addEdge(n)
+                    # is a file
+                    elif path:
+                        if node_stack and last_is_tag:
+                            graph[path] = node_stack.pop()
+                            if node_stack:
+                                node_stack[-1].addEdge(graph[path])
+                            else:
+                                no.addEdge(graph[path])
+                        else:
+                            graph[path] = Node(path)
+                            no.addEdge(graph[path])
+                    # stop dependencies check from ':'
+                    # if empty line detected
+                    elif parameter_name is None:
+                        node_stack = []
+                    indent_level = 0
+                    path = None
+                    parameter_name = None
+                    op_increment = False
+                    wait_new_line = False
+                    last_is_tag = False
         # if in recursion
         if depth > 0:
             return no, graph
