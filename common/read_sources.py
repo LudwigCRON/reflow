@@ -329,15 +329,14 @@ def read_sources(filepath: str, graph: dict = {}, depth: int = 0):
     # call functions registered in rules
     ans = []
     for i, item in enumerate(resolved):
-        for f in utils.list_observer(item.name):
-            tmp = f(item)
-            if tmp:
-                if isinstance(tmp, Iterable):
-                    ans.extend(tmp)
-                else:
-                    ans.append(tmp)
+        tmp = item
+        for f in utils.list_observer(tmp.name):
+            tmp = f(tmp)
+        if tmp:
+            if isinstance(tmp, Iterable):
+                ans.extend(tmp)
             else:
-                ans.append(item)
+                ans.append(tmp)
         else:
             ans.append(item)
     # return the value

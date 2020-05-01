@@ -1,6 +1,6 @@
 `timescale 1ns/10ps
 
-module tb();
+module tb;
 
 reg         f100m_clk;
 reg         rstb;
@@ -146,7 +146,5 @@ sar_analog #(
     .ms_sar_dl          (ms_sar_dl),
     .ms_sar_rdy         (ms_sar_rdy)
 );
-
-
 
 endmodule

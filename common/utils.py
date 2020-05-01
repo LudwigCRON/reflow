@@ -3,6 +3,7 @@
 import os
 import re
 import sys
+import datetime
 
 from pathlib import Path
 
@@ -172,3 +173,11 @@ def apply_for(extensions: str):
             else:
                 RULES[ext] = [func]
     return decorator
+
+
+# ======== json encoder ========
+def json_encoder(o):
+    if isinstance(o, (datetime.date, datetime.datetime)):
+        return o.isoformat()
+    if "to_dict" in dir(o):
+        return o.to_dict()

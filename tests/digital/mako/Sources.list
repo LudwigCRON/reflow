@@ -2,7 +2,6 @@ template_ana.xlsx
 basic_wrapper.v.mako:
     template_ana.xlsx@Timing
 
-    basic_wrapper.v
 /design/adc_ec_lp
 
 COV_FLAGS =   -NOWARN MCRDEF

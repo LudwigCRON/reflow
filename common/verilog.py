@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import re
+import json
 from enum import Enum
 
 
@@ -56,6 +57,9 @@ class Instance:
             self.module_name,
             len(self.params) - 1
         )
+
+    def to_dict(self):
+        return {k: getattr(self, k) for k in self.__slots__}
 
 
 # ====== Modules =======
@@ -133,15 +137,20 @@ class Module:
             len(self.params)
         )
 
+    def to_dict(self):
+        d = {k: getattr(self, k) for k in self.__slots__ if k is not "pins"}
+        d["pins"] = [p.to_dict() for p in self.pins]
+        return d
+
 
 # ======= Pins =========
-class PinDirections(Enum):
+class PinDirections(str, Enum):
     INPUT  = ">",
     OUTPUT = "<",
     INOUT  = "<>"
 
 
-class PinTypes(Enum):
+class PinTypes(str, Enum):
     WIRE       = "-",
     WOR        = "|",
     WAND       = "&",
@@ -210,6 +219,9 @@ class Pins:
                 self.msb = int(a) if isinstance(a, float) else a
                 self.lsb = int(b) if isinstance(b, float) else b
                 self.width = -1
+
+    def to_dict(self):
+        return {k: getattr(self, k) for k in self.__slots__}
 
 
 # ==== Verilog Parsing ====

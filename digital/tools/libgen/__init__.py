@@ -84,6 +84,9 @@ class Pins(object):
         s = ["%s: %s" % (s, getattr(self, s, '')) for s in Pins.__slots__]
         return '\n'.join(s)
 
+    def to_dict(self):
+        return {k: getattr(self, k) for k in self.__slots__}
+
     @staticmethod
     def parse_dict(d):
         p = Pins()
@@ -189,6 +192,31 @@ def read_description(ws):
     return description
 
 
+class Lib:
+    __slots__ = ["name", "area", "pins", "types", "corners"]
+
+    def __init__(self, desc, pins):
+        self.name = desc.get("name_of_the_cell")
+        self.area = "block_area_(um2)"
+        self.pins = pins
+        self.types = [pin for pin in pins if pin.width > 1]
+        self.corners = []
+        for corner, condition in desc.get("corners", {}).items():
+            self.corners.append({
+                "name": corner,
+                "condition": condition,
+                "library": "%s_%s_%sV_%sC" % (
+                    desc.get("name_of_the_cell"),
+                    corner,
+                    ("%.2f" % condition.get("voltage")).replace('.', '_'),
+                    str(condition.get("temperature")).replace('-', 'm')
+                )
+            })
+
+    def to_dict(self):
+        return {k: getattr(self, k) for k in self.__slots__}
+
+
 def create_libs(desc: dict, pins: list, output_dir: str, verbose: bool = False):
     """
     generate a lib file for each corners
@@ -231,8 +259,9 @@ def main(file, output_dir, verbose: bool = False):
     ws = wb["Timing"]
     pins = read_timings(ws)
     # create a lib for each corners
+    lib = Lib(desc, pins)
     libs = create_libs(desc, pins, output_dir, verbose)
-    return libs
+    return libs, lib
 
 
 if __name__ == "__main__":
