@@ -1,8 +1,6 @@
-template_ana.xlsx
 basic_wrapper.v.mako:
     template_ana.xlsx@Timing
-
-/design/adc_ec_lp
+    ../generic_sar/
 
 COV_FLAGS =   -NOWARN MCRDEF
-COV_FLAGS+= -define adc_ec_lp.SAFETY_LEVEL=21'h1F0AB
+COV_FLAGS+= -define sar.NSTEPS=10

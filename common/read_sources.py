@@ -96,7 +96,14 @@ class Node:
         self.params = defaultdict(list)
 
     def addEdge(self, node):
-        self.edges.append(node)
+        # update if existing
+        for i, n in enumerate(self.edges):
+            if n.name == node.name:
+                self.edges[i] = node
+                break
+        else:
+            # add it otherwise
+            self.edges.append(node)
 
     def describe(self):
         print(self.name + ": ")
@@ -246,6 +253,7 @@ def read_sources(filepath: str, graph: dict = {}, depth: int = 0):
             tokens = source_tokenizer(fp)
             # parse the file
             indent_level = 0
+            in_group = 0
             string = None
             parameter_name = None
             op_increment = False
@@ -280,6 +288,7 @@ def read_sources(filepath: str, graph: dict = {}, depth: int = 0):
                 # received ':' so the file as dependences
                 elif type == TokenType.SEP:
                     node_stack.append(Node(path))
+                    in_group = indent_level + 1
                 # received '=' or '+=' so previous string is a parameter name
                 elif type == TokenType.PARAM_SEP and not wait_new_line:
                     parameter_name = string
@@ -294,7 +303,8 @@ def read_sources(filepath: str, graph: dict = {}, depth: int = 0):
                 elif type == TokenType.NEW_LINE:
                     # if directory read the pointed sources.list
                     if path and os.path.isdir(path) and check_source_exists(path):
-                        n, _ = read_sources(path, graph, depth + 1)
+                        n, g = read_sources(path, graph, depth + 1)
+                        graph.update(g)
                         if node_stack:
                             node_stack[-1].addEdge(n)
                         else:
@@ -311,9 +321,11 @@ def read_sources(filepath: str, graph: dict = {}, depth: int = 0):
                             graph[path] = Node(path)
                             no.addEdge(graph[path])
                     # stop dependencies check from ':'
-                    # if empty line detected
-                    elif parameter_name is None:
-                        node_stack = []
+                    # if empty line detected or wrong indentation
+                    if (parameter_name is None) or (indent_level < in_group):
+                        while node_stack:
+                            no.addEdge(node_stack.pop())
+                        in_group = indent_level
                     indent_level = 0
                     path = None
                     parameter_name = None
@@ -328,10 +340,10 @@ def read_sources(filepath: str, graph: dict = {}, depth: int = 0):
     resolve_dependancies(no, resolved, [])
     # call functions registered in rules
     ans = []
-    for i, item in enumerate(resolved):
-        tmp = item
-        for f in utils.list_observer(tmp.name):
-            tmp = f(tmp)
+    for i, item in enumerate(resolved[::-1]):
+        tmp = None
+        for f in utils.list_observer(item.name):
+            tmp = f(item)
         if tmp:
             if isinstance(tmp, Iterable):
                 ans.extend(tmp)
@@ -340,7 +352,7 @@ def read_sources(filepath: str, graph: dict = {}, depth: int = 0):
         else:
             ans.append(item)
     # return the value
-    return ans[::-1]
+    return ans
 
 
 def read_from(sources_list: str, no_logger: bool = False, no_stdout: bool = True):

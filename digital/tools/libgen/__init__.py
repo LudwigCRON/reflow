@@ -88,6 +88,13 @@ class Pins(object):
         return {k: getattr(self, k) for k in self.__slots__}
 
     @staticmethod
+    def from_json(db):
+        p = Pins()
+        for k, v in db.items():
+            setattr(p, k, v)
+        return p
+
+    @staticmethod
     def parse_dict(d):
         p = Pins()
         # get most probable key name
@@ -215,6 +222,14 @@ class Lib:
 
     def to_dict(self):
         return {k: getattr(self, k) for k in self.__slots__}
+
+    @staticmethod
+    def from_json(db):
+        l = Lib({},[])
+        for k, v in db.items():
+            setattr(l, k, v)
+        l.pins = [Pins.from_json(p) for p in l.pins]
+        return l
 
 
 def create_libs(desc: dict, pins: list, output_dir: str, verbose: bool = False):

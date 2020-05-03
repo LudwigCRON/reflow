@@ -69,7 +69,7 @@ def add_in_database(node, *args, **kwargs):
     if "includes" not in db:
         db["includes"] = []
     if "modules" not in db:
-        db["modules"] = []
+        db["modules"] = {}
     if "timescales" not in db:
         db["timescales"] = []
     # parse the verilog file
@@ -83,16 +83,14 @@ def add_in_database(node, *args, **kwargs):
         module.parse_pins(m[2])
         module.parse_parameters(m[-1])
         module.parse_pins(m[-1])
-        db["modules"].append(module.to_dict())
-    instances = []
-    for i in verilog.find_instances(node.name):
-        if i[1]:
-            instance = verilog.Instance(i[2], i[0])
-            instance.parse_parameters(i[1])
-        else:
-            instance = verilog.Instance(i[2], i[0])
-        instances.append(instance.to_dict())
-    db["modules"][-1]["instances"] = instances
+        for i in verilog.find_instances(node.name):
+            if i[1]:
+                instance = verilog.Instance(i[2], i[0])
+                instance.parse_parameters(i[1])
+            else:
+                instance = verilog.Instance(i[2], i[0])
+            module.instances.append(instance)
+        db["modules"][module.name] = module.to_dict()
     with open(db_path, "w+") as fp:
         fp.write(json.dumps(db, indent=2, sort_keys=True))
 
@@ -110,6 +108,9 @@ def generate_file(node, *args, **kwargs):
     if os.path.exists(db_path):
         with open(db_path, "r") as fp:
             db = json.load(fp)
+    # deserialize
+    db["libs"] = {name: libgen.Lib.from_json(lib) for name, lib in db.get("libs", {}).items()}
+    db["modules"] = [verilog.Module.from_json(m) for m in db.get("modules", {}).values()]
     # generate file from the template
     _tmp = Template(filename=node.name)
     with open(os.path.join(output_dir, node.name.replace(".mako", "")), "w+") as fp:

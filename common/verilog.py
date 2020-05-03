@@ -26,7 +26,7 @@ def evaluate(text: str):
 class Instance:
     __slots__ = ["name", "module_name", "params"]
 
-    def __init__(self, name, module_name):
+    def __init__(self, name: str = None, module_name: str = None):
         self.name = name if name is not None else ""
         self.module_name = module_name if module_name is not None else ""
         self.params = {"unresolved": []}
@@ -61,15 +61,23 @@ class Instance:
     def to_dict(self):
         return {k: getattr(self, k) for k in self.__slots__}
 
+    @staticmethod
+    def from_json(db):
+        i = Instance()
+        for k, v in db.items():
+            setattr(i, k, v)
+        return i
+
 
 # ====== Modules =======
 class Module:
-    __slots__ = ["params", "pins", "name"]
+    __slots__ = ["params", "pins", "name", "instances"]
 
-    def __init__(self, name):
+    def __init__(self, name: str = None):
         self.name = name if name is not None else ""
         self.params = {}
         self.pins = []
+        self.instances = []
 
     def parse_parameters(self, text: str):
         if text is None:
@@ -140,7 +148,17 @@ class Module:
     def to_dict(self):
         d = {k: getattr(self, k) for k in self.__slots__ if k is not "pins"}
         d["pins"] = [p.to_dict() for p in self.pins]
+        d["instances"] = [i.to_dict() for i in self.instances]
         return d
+
+    @staticmethod
+    def from_json(db):
+        m = Module()
+        for k, v in db.items():
+            setattr(m, k, v)
+        m.pins = [Pins.from_json(p) for p in m.pins]
+        m.instances = [Instance.from_json(i) for i in m.instances]
+        return m
 
 
 # ======= Pins =========
@@ -164,7 +182,7 @@ class PinTypes(str, Enum):
 class Pins:
     __slots__ = ["name", "direction", "type", "width", "msb", "lsb"]
 
-    def __init__(self, name):
+    def __init__(self, name: str = None):
         self.name = name if name is not None else ""
         self.direction = PinDirections.INOUT
         self.width = 1
@@ -222,6 +240,15 @@ class Pins:
 
     def to_dict(self):
         return {k: getattr(self, k) for k in self.__slots__}
+
+    @staticmethod
+    def from_json(db):
+        p = Pins()
+        for k, v in db.items():
+            setattr(p, k, v)
+        p.direction = PinDirections(p.direction).name
+        p.type = PinTypes(p.type).name
+        return p
 
 
 # ==== Verilog Parsing ====
