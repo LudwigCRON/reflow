@@ -318,7 +318,9 @@ if __name__ == "__main__":
         launch_tool(tool_name, "view", NO_CALLBACKS, wave_ext)
     # synthesis
     if args.synth:
-        relog.step("Listing files")
+        # define working directory
+        os.environ["WORK_DIR"] = os.path.join(CURRENT_DIR, "./.tmp_synth/")
+        os.makedirs(os.environ["WORK_DIR"], exist_ok=True)
         files, params = read_sources.read_from(CURRENT_DIR)
         # load the simulator script
         tool_name = config["DIG_SYNTHESIS_TOOL"]

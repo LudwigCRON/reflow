@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import re
 import sys
 import argparse
 
@@ -24,6 +25,16 @@ EXTENSIONS     = {
 TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
+def evaluate_bash_var(txt: str):
+    RE_BASH_VAR = r"\$((?!\$)([\w_]+)|{([\w_]+)})"
+    t = txt
+    for match in re.finditer(RE_BASH_VAR, txt):
+        var_txt, _, var_name = match.groups()
+        if os.getenv(var_name):
+            t = t.replace("$%s" % var_txt, os.getenv(var_name))
+    return t
+
+
 def prepare(files, params):
     relog.step("Preparation")
     os.makedirs(DEFAULT_TMPDIR, exist_ok=True)
@@ -42,18 +53,19 @@ def run():
     executor.sh_exec("yosys %s" % SYNTH_SCRIPT, SYNTH_LOG, MAX_TIMEOUT=300)
 
 
-def main(files, params, format: str = "verilog", top: str = None, ):
+def main(files, params, format: str = "verilog", top: str = None):
     prepare(files, params)
     # fill mako template
     ext = EXTENSIONS.get(format)
     if top is None:
-        top = params.get("TOP_MODULE")
+        top = params.get("SYNTH_MODULE")[-1]
     data = {
         "top_module": top,
-        "techno": os.environ["TECH_LIB"],
+        "techno": evaluate_bash_var(os.environ["TECH_LIB"]),
         "netlist": "%s_after_synthesis.%s" % (top, ext),
         "format": format
     }
+    data.update(os.environ)
     # generate yosys script
     relog.step("Merging synthesis files")
     _tmp = Template(filename=os.path.join(TOOLS_DIR, "./extra.ys.mako"))

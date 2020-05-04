@@ -17,7 +17,7 @@ abc -liberty ${techno}
 # clean output
 clean
 
-show
+show ${top_module}
 
 # save the output of synthesis
 % if format == "spice":
