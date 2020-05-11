@@ -34,7 +34,8 @@ def generate_lib(node, *args, **kwargs):
     if "libs" not in db:
         db["libs"] = {}
     # generate libs for synthesis
-    libs, lib = libgen.main(node.name, output_dir)
+    sheetname = node.params.get("TAGS")[-1] if "TAGS" in node.params else "Timing"
+    libs, lib = libgen.main(node.name, output_dir, sheetname)
     # register generated file
     for libnode in libs:
         n = copy.deepcopy(node)

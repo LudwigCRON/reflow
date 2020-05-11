@@ -265,13 +265,16 @@ def create_libs(desc: dict, pins: list, output_dir: str, verbose: bool = False):
     return lib_paths
 
 
-def main(file, output_dir, verbose: bool = False):
+def main(file, output_dir, sheetname: str = "Timing", verbose: bool = False):
     wb = load_workbook(file, data_only=True)
     # read corners and extraction informations
-    ws = wb["General"]
-    desc = read_description(ws)
+    if "General" in wb:
+        ws = wb["General"]
+        desc = read_description(ws)
+    else:
+        desc = {}
     # read pins and their timings
-    ws = wb["Timing"]
+    ws = wb[sheetname]
     pins = read_timings(ws)
     # create a lib for each corners
     lib = Lib(desc, pins)
