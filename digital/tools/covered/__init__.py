@@ -41,7 +41,7 @@ def prepare(files, PARAMS):
     MIMES = list(set([m for f, m in files]))
     INCLUDE_DIRS = resolve_includes(FILES)
     # generate file list
-    modules = PARAMS["COV_MODULES"][0].split(" ") if "COV_MODULES" in PARAMS else [top]
+    modules = PARAMS["COV_MODULES"][0].split(" ") if "COV_MODULES" in PARAMS else ["top"]
     instances = verilog.find_instances(PARAMS["TOP_MODULE"])
     instances = [(mod, instance) for mod, pa, instance, po in instances if mod in modules]
     generation = 3 if any(["SYS" in m for m in MIMES]) else 2

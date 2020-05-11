@@ -12,18 +12,9 @@ import common.rules
 import common.utils as utils
 import common.verilog as verilog
 
-TYPES = {
-    "VERILOG_AMS": [".vams"],
-    "VERILOG": [".v", ".vh", ".va"],
-    "SYSTEM_VERILOG": [".sv", ".svh"],
-    "ASSERTIONS": [".sva"],
-    "ANALOG": [".scs", ".cir", ".asc", ".sp"],
-    "LIBERTY": [".lib"],
-}
-
 
 # ==== help in parsing sources.list ====
-def get_path(path: str, base: str = "") -> str:
+def resolve_path(path: str, base: str = "") -> str:
     """
     resolve the absolute path of a file in the
     sources.list
@@ -46,7 +37,8 @@ def get_path(path: str, base: str = "") -> str:
     if i >= 0:
         new_path = os.path.join(
             base[: i + len(platform)],
-            "digital" if is_digital(base) else "analog" if is_analog(base) else "mixed",
+            "digital" if utils.files.is_digital(base) else
+            "analog" if utils.files.is_analog(base) else "mixed",
             path[1:],
         )
         if os.path.exists(new_path):
@@ -71,7 +63,7 @@ def resolve_includes(files: list) -> list:
             # iterate through include statement detected
             for inc in verilog.find_includes(file):
                 # resolve the path and store it
-                includes.append(get_path("/" + inc, file))
+                includes.append(resolve_path("/" + inc, file))
     # return the list of include to only
     # have non redundante parent directory
     includes = list(set(map(os.path.dirname, includes)))
@@ -136,28 +128,6 @@ def resolve_dependancies(node, resolved, unresolved) -> None:
     unresolved.remove(node)
 
 
-# ==== mime-type of files ====
-def get_type(filepath: str) -> str:
-    if not os.path.isfile(filepath):
-        return None
-    _, ext = os.path.splitext(filepath)
-    for k, v in TYPES.items():
-        if ext in v:
-            return k
-    return None
-
-
-def is_digital(filepath: str) -> bool:
-    if not os.path.isfile(filepath):
-        return "digital" in filepath
-    _, ext = os.path.splitext(filepath)
-    return get_type(filepath) not in ["ANALOG", None]
-
-
-def is_analog(filepath: str) -> bool:
-    return get_type(filepath) in ["ANALOG"]
-
-
 # ====== business logic ======
 def check_source_exists(dirpath: str) -> bool:
     _ = os.path.join(dirpath, "Sources.list")
@@ -191,14 +161,14 @@ def source_tokenizer(buffer):
     for line in buffer:
         start_index = 0
         is_blank_from_zero, previous, current = True, '', ''
-        l = line.expandtabs(4)
-        for pos, current in enumerate(l):
+        ln = line.expandtabs(4)
+        for pos, current in enumerate(ln):
             # check for indentation
             if current == ' ' and previous in ['', ' '] and start_index == 0:
                 previous = current
                 continue
             elif current != ' ' and is_blank_from_zero and start_index == 0:
-                yield (TokenType.INDENT, l[:pos])
+                yield (TokenType.INDENT, ln[:pos])
                 start_index = pos
             # check for string
             elif current.isalnum() or current in "/\\._-() []éèàï":
@@ -206,24 +176,29 @@ def source_tokenizer(buffer):
                 continue
             # check for separator
             elif current in "@:=+\n":
-                if l[start_index:pos]:
-                    yield (TokenType.STRING, l[start_index:pos])
+                if ln[start_index:pos]:
+                    yield (TokenType.STRING, ln[start_index:pos])
                     start_index = pos + 1
                 # skip + as if can be part of the += token
                 if current in "+":
                     previous = current
                     continue
                 # report separator
-                type = TokenType.PARAM_SEP if current == '=' else \
-                       TokenType.TAG_SEP if current == '@' else \
-                       TokenType.NEW_LINE if current == '\n' else TokenType.SEP
-                yield (type, '+=' if previous == '+' and current == '=' else \
-                               '' if current == '\n' else current)
+                if previous == '+' and current == '=':
+                    yield (TokenType.PARAM_SEP, '+=')
+                elif current == '=':
+                    yield (TokenType.PARAM_SEP, '=')
+                elif current == '@':
+                    yield (TokenType.TAG_SEP, '@')
+                elif current == '\n':
+                    yield (TokenType.NEW_LINE, '')
+                else:
+                    yield (TokenType.SEP, current)
                 start_index = pos + 1
             previous = current
             if current != ' ':
                 is_blank_from_zero = False
-    yield (TokenType.STRING, l[start_index:])
+    yield (TokenType.STRING, ln[start_index:])
 
 
 def read_sources(filepath: str, graph: dict = {}, depth: int = 0):
@@ -256,21 +231,25 @@ def read_sources(filepath: str, graph: dict = {}, depth: int = 0):
             in_group = 0
             string = None
             parameter_name = None
+            parameter_value = []
             op_increment = False
             wait_new_line = False
+            continue_append = False
             last_is_tag = False
             node_stack = []
             for type, token in tokens:
                 # indentation management
                 if type == TokenType.INDENT:
                     indent_level += 1
+                    continue_append = False
                 # string or parameter value with '=' or '+='
                 elif type == TokenType.STRING:
                     if parameter_name is not None:
-                        if op_increment:
-                            no.params[parameter_name].append(token)
+                        if op_increment or continue_append:
+                            parameter_value.append(token)
                         else:
-                            no.params[parameter_name] = [token]
+                            parameter_value = [token]
+                        continue_append = False
                     # add tag to last node referenced
                     elif last_is_tag:
                         if "TAGS" in node_stack[-1].params:
@@ -280,27 +259,35 @@ def read_sources(filepath: str, graph: dict = {}, depth: int = 0):
                     # file / parameter name / directory
                     else:
                         string = token
-                        path = get_path(token.strip(), os.path.dirname(filepath))
+                        path = resolve_path(token.strip(), os.path.dirname(filepath))
                 # received '@' so add tag as parameter
                 elif type == TokenType.TAG_SEP:
                     node_stack.append(Node(path))
                     last_is_tag = True
+                    continue_append = False
                 # received ':' so the file as dependences
                 elif type == TokenType.SEP:
                     node_stack.append(Node(path))
                     in_group = indent_level + 1
+                    continue_append = False
                 # received '=' or '+=' so previous string is a parameter name
-                elif type == TokenType.PARAM_SEP and not wait_new_line:
-                    parameter_name = string
-                    # create default value for the parameter if not exist
-                    if parameter_name not in no.params:
-                        no.params[parameter_name] = []
-                    # parameter name [=|+=] parameter value till \n
-                    if token == '+=':
-                        op_increment = True
-                    wait_new_line = True
-                    path = None
+                elif type == TokenType.PARAM_SEP:
+                    if not wait_new_line:
+                        parameter_name = string
+                        # create default value for the parameter if not exist
+                        if parameter_name not in no.params:
+                            parameter_value = []
+                        # parameter name [=|+=] parameter value till \n
+                        if token == '+=':
+                            op_increment = True
+                        wait_new_line = True
+                        path = None
+                    else:
+                        parameter_value.append('=')
+                        continue_append = True
                 elif type == TokenType.NEW_LINE:
+                    if parameter_name:
+                        no.params[parameter_name] = [''.join(parameter_value)]
                     # if directory read the pointed sources.list
                     if path and os.path.isdir(path) and check_source_exists(path):
                         n, g = read_sources(path, graph, depth + 1)
@@ -329,8 +316,10 @@ def read_sources(filepath: str, graph: dict = {}, depth: int = 0):
                     indent_level = 0
                     path = None
                     parameter_name = None
+                    parameter_value = []
                     op_increment = False
                     wait_new_line = False
+                    continue_append = False
                     last_is_tag = False
         # if in recursion
         if depth > 0:
@@ -342,7 +331,7 @@ def read_sources(filepath: str, graph: dict = {}, depth: int = 0):
     ans = []
     for i, item in enumerate(resolved[::-1]):
         tmp = None
-        for f in utils.list_observer(item.name):
+        for f in utils.rules.list_observer(item.name):
             tmp = f(item)
         if tmp:
             if isinstance(tmp, Iterable):
@@ -365,9 +354,9 @@ def read_from(sources_list: str, no_logger: bool = False, no_stdout: bool = True
     if not no_logger:
         log_inc = os.path.join(os.environ["REFLOW"], "digital/packages/log.svh")
         if no_stdout:
-            files.append((log_inc, get_type(log_inc)))
+            files.append((log_inc, utils.files.get_type(log_inc)))
         else:
-            print(log_inc, get_type(log_inc), sep=";")
+            print(log_inc, utils.files.get_type(log_inc), sep=";")
     # store the list of files
     graph = {}
     try:
@@ -377,7 +366,7 @@ def read_from(sources_list: str, no_logger: bool = False, no_stdout: bool = True
     # display the list of files and their mime-type
     for node in graph:
         if isinstance(node, Node):
-            _t = get_type(node.name)
+            _t = utils.files.get_type(node.name)
             if _t:
                 if no_stdout:
                     files.append((node.name, _t))
@@ -395,15 +384,21 @@ def read_from(sources_list: str, no_logger: bool = False, no_stdout: bool = True
     # define the most accurate timescale define
     min_ts = (1, "s", 1, "ms")
     for node in graph:
-        if isinstance(node, Node):
-            ts = verilog.find_timescale(node.name) if is_digital(node.name) else []
-            if ts:
-                sn, su, rn, ru = ts[0]
-                if utils.evaluate_eng_unit(sn, su) < utils.evaluate_eng_unit(*min_ts[0:2]):
-                    min_ts = (sn, su, *min_ts[2:4])
-                if utils.evaluate_eng_unit(rn, ru) < utils.evaluate_eng_unit(*min_ts[2:4]):
-                    min_ts = (*min_ts[0:2], rn, ru)
-    if utils.evaluate_eng_unit(*min_ts[0:2]) == 1.0:
+        if not isinstance(node, Node):
+            continue
+        if not utils.files.is_digital(node.name):
+            continue
+        ts = verilog.find_timescale(node.name)
+        if ts:
+            sn, su, rn, ru = ts[0]
+            if utils.parsers.evaluate_eng_unit(sn, su) < \
+               utils.parsers.evaluate_eng_unit(*min_ts[0:2]):
+                min_ts = (sn, su, *min_ts[2:4])
+
+            if utils.parsers.evaluate_eng_unit(rn, ru) < \
+               utils.parsers.evaluate_eng_unit(*min_ts[2:4]):
+                min_ts = (*min_ts[0:2], rn, ru)
+    if utils.parsers.evaluate_eng_unit(*min_ts[0:2]) == 1.0:
         print("TIMESCALE\t:\t'1ns/100ps'")
         parameters["TIMESCALE"] = "1ns/100ps"
     else:

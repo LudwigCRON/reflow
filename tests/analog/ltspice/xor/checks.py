@@ -31,8 +31,8 @@ def main(db):
     nb_steps = db["nb_steps"]
     steps_idx = db["steps_idx"]
 
-    utils.default_plot_style()
-    plt.figure(figsize=(4, min(3, nb_steps * 1.5)))
+    utils.graphs.default_plot_style()
+    plt.figure(figsize=(4, max(3, nb_steps * 1.5)))
     for i, idxs in enumerate(steps_idx):
         l, h = idxs
         plt.subplot(311 + i)

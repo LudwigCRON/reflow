@@ -24,7 +24,7 @@ def parse_time(s: str):
         1e-12 (default) if s is not string
         the value scaled by the unit
     """
-    return utils.parse_eng_unit(s, base_unit='s', default=1e-12)
+    return utils.parsers.parse_eng_unit(s, base_unit='s', default=1e-12)
 
 
 def parse_cap(s):
@@ -38,7 +38,7 @@ def parse_cap(s):
         1e-15 (default) if s is not string
         the value scaled by the unit
     """
-    return utils.parse_eng_unit(s, base_unit='f', default=1e-15)
+    return utils.parsers.parse_eng_unit(s, base_unit='f', default=1e-15)
 
 
 def parse_name(s):

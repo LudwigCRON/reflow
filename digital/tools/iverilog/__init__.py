@@ -8,7 +8,8 @@ import common.utils as utils
 import common.relog as relog
 import common.executor as executor
 
-from common.read_sources import get_type, is_digital, resolve_includes
+from common.read_sources import resolve_includes
+from common.utils.files import get_type, is_digital
 
 
 WAVE_FORMAT    = "vcd"

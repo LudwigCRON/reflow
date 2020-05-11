@@ -11,8 +11,6 @@ import argparse
 
 from pathlib import Path
 from datetime import datetime
-from importlib import import_module
-from importlib.util import spec_from_file_location, module_from_spec
 
 from mako.template import Template
 
@@ -27,100 +25,19 @@ sys.path.append(CURRENT_DIR)
 
 import common.utils as utils
 import common.relog as relog
-import common.read_sources as read_sources
-import common.design_tree as design_tree
 import common.read_batch as read_batch
+import common.read_config as read_config
+import common.design_tree as design_tree
+import common.read_sources as read_sources
 
-# load a local configuration if there is one
-local_config = None
-for file in Path(CURRENT_DIR).rglob("*.config"):
-    local_config = str(file)
-    break
-# or the default configuration
+
+# the default configuration
 default_config = os.path.join(REFLOW_DIR, "./default.config")
-# export environment variables
-os.environ["DEFAULT_CONFIG"] = default_config
-os.environ["LOCAL_FLOW_CONFIG"] = "" if local_config is None else local_config
-os.environ["CONFIG_PATH"] = default_config if local_config is None else local_config
-
-
-def read_sim_stat(path: str):
-    # <block>/.tmp_<type of sim>/<type of sim>.stats
-    block = os.path.basename(os.path.dirname(os.path.dirname(path)))
-    type = os.path.basename(str(path).lower()).split(".")[0]
-    # read stats of simulations
-    with open(path, "r+") as fp:
-        db_sim = dict(
-            (line.split(":", 1) for i, line in enumerate(fp) if ":" in line and i > 0)
-        )
-        # parse number values
-        def try_parse(v: str):
-            if all((c in "0123456789.\n" for c in v.strip())):
-                return float(v)
-            return v.strip()
-
-        db_sim = {k: try_parse(v) for k, v in db_sim.items()}
-        if "Sim. Time" in db_sim:
-            db_sim["total_time"] = db_sim.pop("Sim. Time")
-        else:
-            db_sim["total_time"] = 0
-        if "Warnings" in db_sim:
-            db_sim["warnings"] = db_sim.pop("Warnings")
-        else:
-            db_sim["warnings"] = 0
-        if "Errors" in db_sim:
-            db_sim["errors"] = db_sim.pop("Errors")
-        else:
-            db_sim["errors"] = 0
-        db_sim["name"] = block
-        print(db_sim)
-    return type, db_sim
-
-
-def add_extra_stats(db_batch: dict):
-    db_batch["nb_simulation"] = len(db_batch["sims"])
-    db_batch["nb_coverage"] = len(db_batch["covs"])
-    db_batch["nb_lint"] = len(db_batch["lints"])
-    db_batch["simulation"] = sum(
-        (1 for sim in db_batch["sims"] if sim.get("errors", 0) == 0)
-    )
-    db_batch["coverage"] = sum((1 for sim in db_batch["covs"] if sim.get("errors", 0) == 0))
-    db_batch["lint"] = sum((1 for sim in db_batch["lints"] if sim.get("errors", 0) == 0))
-
-
-def import_file(module_name, file, location):
-    spec = spec_from_file_location(module_name, os.path.join(location, file))
-    module = module_from_spec(spec)
-    sys.modules[module_name] = module
-    spec.loader.exec_module(module)
-    return module
-
-
-def launch_tool(
-    tool_name: str, stats_name: str, callbacks: tuple = (None, None), *args, **kwargs
-):
-    # find the tool
-    tool_path = utils.find_tool(tool_name)
-    sys.path.append(os.path.dirname(tool_path))
-    # load it
-    tool = import_module(tool_name)
-    # execute it and time it
-    t_start = time.time() * 1000.0
-    pre, post = callbacks
-    warnings_errors = []
-    if pre:
-        warnings_errors.append(pre(*args, **kwargs))
-    warnings_errors.append(tool.main(*args, **kwargs))
-    if post:
-        warnings_errors.append(post(*args, **kwargs))
-    t_end = time.time() * 1000.0
-    # store statistics
-    warnings, errors = numpy.nansum(warnings_errors, axis=0)
-    with open(os.path.join(utils.get_tmp_folder(), "./%s.stats" % stats_name), "w+") as fp:
-        fp.write("%s\n" % datetime.now())
-        fp.write("Warnings: %d\n" % warnings)
-        fp.write("Errors: %d\n" % errors)
-        fp.write("Sim. Time: %d\n" % (t_end - t_start))
+# load a local configuration if there is one
+config_files = [default_config]
+for file in Path(CURRENT_DIR).rglob("*.config"):
+    config_files.append(str(file))
+    break
 
 
 NO_CALLBACKS = (None, None)
@@ -179,7 +96,7 @@ if __name__ == "__main__":
     if not any(dict(args._get_kwargs()).values()):
         parser.print_help()
     # load the configuration
-    config = utils.read_config(os.environ["CONFIG_PATH"])
+    config = read_config.read_configs(config_files)
     os.environ["TECH_LIB"] = config.get("TECH_LIB", "")
     if "PLATFORM" not in os.environ:
         os.environ["PLATFORM"] = config.get("PLATFORM", "ganymede")
@@ -236,12 +153,12 @@ if __name__ == "__main__":
         relog.step("Listing files")
         files, params = read_sources.read_from(CURRENT_DIR)
         # determine the simulation type
-        IS_DIG_SIM = all((read_sources.is_digital(file) for file, _ in files))
+        IS_DIG_SIM = all((utils.files.is_digital(file) for file, _ in files))
         if not IS_DIG_SIM:
             relog.error("cannot lint mixed signal or analog simulations")
             exit(0)
         # launch the linter without callback
-        launch_tool(
+        utils.tools.launch_tool(
             config["DIG_LINTER_TOOL"], "lint", NO_CALLBACKS, files, params, lint=True
         )
     # display hierarchy of the design
@@ -257,10 +174,10 @@ if __name__ == "__main__":
         relog.step("Listing files")
         files, params = read_sources.read_from(CURRENT_DIR)
         # determine the simulation type
-        IS_DIG_SIM = all((read_sources.is_digital(file) for file, _ in files))
+        IS_DIG_SIM = all((utils.files.is_digital(file) for file, _ in files))
         if not IS_DIG_SIM:
             files, params = read_sources.read_from(CURRENT_DIR, no_logger=True)
-        IS_ANA_SIM = all((read_sources.is_analog(file) for file, _ in files))
+        IS_ANA_SIM = all((utils.files.is_analog(file) for file, _ in files))
         # load the simulator script
         if IS_DIG_SIM and not IS_ANA_SIM:
             tool_name = config["DIG_SIMULATOR_TOOL"]
@@ -269,6 +186,7 @@ if __name__ == "__main__":
         else:
             relog.error("Not yet implementd mixed signal simulation")
             exit(0)
+
         # create callbacks
         def _callbacks():
             scripts = params.get("POST_SIM", [])
@@ -276,7 +194,7 @@ if __name__ == "__main__":
 
             def post_sim(*args, **kwargs):
                 warnings_errors = []
-                raw_parser = import_file(
+                raw_parser = utils.tools.import_tool(
                     "raw_parser",
                     "%s.py" % config["ANA_WAVEFORM_PARSER"],
                     os.path.join(REFLOW_DIR, "./analog/tools/parsers/"),
@@ -284,7 +202,7 @@ if __name__ == "__main__":
                 cwd = CURRENT_DIR.replace(".tmp_batch/", "")
                 waves = raw_parser.load_raw(cwd)
                 for script in scripts:
-                    s = import_file("tmp", script, cwd)
+                    s = utils.tools.import_tool("tmp", script, cwd)
                     warnings_errors.append(s.main(waves))
                 return numpy.nansum(warnings_errors, axis=0)
 
@@ -293,17 +211,17 @@ if __name__ == "__main__":
             return NO_CALLBACKS
 
         # execute simulation
-        launch_tool(tool_name, "sim", _callbacks(), files, params)
+        utils.tools.launch_tool(tool_name, "sim", _callbacks(), files, params)
     # show waveforms
     if args.view_sim:
         # define working directory
         os.environ["WORK_DIR"] = os.path.join(CURRENT_DIR, "./.tmp_sim/")
         # determine the simulation type
         files, params = read_sources.read_from(CURRENT_DIR)
-        IS_DIG_SIM = all((read_sources.is_digital(file) for file, _ in files))
+        IS_DIG_SIM = all((utils.files.is_digital(file) for file, _ in files))
         if not IS_DIG_SIM:
             files, params = read_sources.read_from(CURRENT_DIR, no_logger=True)
-        IS_ANA_SIM = all((read_sources.is_analog(file) for file, _ in files))
+        IS_ANA_SIM = all((utils.files.is_analog(file) for file, _ in files))
         # load the simulator script
         if IS_DIG_SIM and not IS_ANA_SIM:
             tool_name = config["DIG_WAVEFORM_VIEWER"]
@@ -315,7 +233,7 @@ if __name__ == "__main__":
             relog.error("Not yet implementd mixed signal simulation")
             exit(0)
         # view the waveforms
-        launch_tool(tool_name, "view", NO_CALLBACKS, wave_ext)
+        utils.tools.launch_tool(tool_name, "view", NO_CALLBACKS, wave_ext)
     # synthesis
     if args.synth:
         # define working directory
@@ -324,7 +242,7 @@ if __name__ == "__main__":
         files, params = read_sources.read_from(CURRENT_DIR)
         # load the simulator script
         tool_name = config["DIG_SYNTHESIS_TOOL"]
-        launch_tool(tool_name, "synth", NO_CALLBACKS, files, params, "verilog")
+        utils.tools.launch_tool(tool_name, "synth", NO_CALLBACKS, files, params, "verilog")
     # generate an html report
     if args.report:
         # define working directory
@@ -343,14 +261,14 @@ if __name__ == "__main__":
             batch = os.path.basename(pwd)
             # analyse only if not top most one
             if batch == os.path.basename(CURRENT_DIR):
-                type, db_sim = read_sim_stat(bstats_path)
+                type, db_sim = utils.stats.read_sim_stat(bstats_path)
                 db.update(db_sim)
                 continue
             for stats_path in Path(pwd).rglob("**/*.stats"):
                 # do not count twice
                 if "batch.stats" in str(stats_path):
                     continue
-                type, db_sim = read_sim_stat(stats_path)
+                type, db_sim = utils.stats.read_sim_stat(stats_path)
                 if type != "batch":
                     db_batch["%ss" % type].append(db_sim)
                 # aggregate
@@ -362,14 +280,14 @@ if __name__ == "__main__":
                         except ValueError:
                             relog.error("%s values should be number" % stats_path)
                 read_stat_done.append(stats_path)
-            add_extra_stats(db_batch)
+            utils.stats.add_extra_stats(db_batch)
             db_batch["name"] = batch
             db["blocks"].append(db_batch)
         # read other sims
         db_batch = {"sims": [], "lints": [], "covs": []}
         for stats_path in Path(CURRENT_DIR).rglob("**/*.stats"):
             if stats_path not in read_stat_done and "batch.stats" not in str(stats_path):
-                type, db_sim = read_sim_stat(stats_path)
+                type, db_sim = utils.stats.read_sim_stat(stats_path)
                 # aggregate
                 for k, v in db_sim.items():
                     tmp = db_batch[k] if k in db_batch else 0
@@ -382,7 +300,7 @@ if __name__ == "__main__":
                 if type != "batch":
                     db_batch["%ss" % type].append(db_sim)
         # add some stats to the db
-        add_extra_stats(db_batch)
+        utils.stats.add_extra_stats(db_batch)
         db_batch["name"] = "others"
         print(db_batch)
         db["blocks"].append(db_batch)
@@ -400,7 +318,7 @@ if __name__ == "__main__":
         relog.step("Listing files")
         files, params = read_sources.read_from(CURRENT_DIR)
         # determine the simulation type
-        IS_DIG_SIM = all((read_sources.is_digital(file) for file, _ in files))
+        IS_DIG_SIM = all((utils.files.is_digital(file) for file, _ in files))
         # load the simulator script
         if IS_DIG_SIM:
             tool_name = config["DIG_COVERAGE_TOOL"]
@@ -408,7 +326,7 @@ if __name__ == "__main__":
             relog.error("Not yet implementd mixed signal or analog simulations")
             exit(0)
         # execute simulation
-        launch_tool(tool_name, "cov", NO_CALLBACKS, files, params)
+        utils.tools.launch_tool(tool_name, "cov", NO_CALLBACKS, files, params)
     # view coverage
     if args.view_cov:
         relog.warning("Not yet implemented")

@@ -33,17 +33,17 @@ def Deg(v):
 def main(db):
     warnings, errors = 0, 0
     time = db["time"]
-    
+
     n = len(time)
     Ts = (np.max(time)-np.min(time))/n
     relog.info("N=%d\tFs=%e" % (n, 1/Ts))
-    
+
     # resample since spice is variable timestep
     Nn = 2**16
     Ts = (np.max(time)-np.min(time))/Nn
     time = np.linspace(np.min(time), np.max(time), Nn)
     freq = np.fft.fftfreq(Nn, d=Ts)
-    
+
     # fft window
     # beta 	Window shape
     # 0 	Rectangular
@@ -53,25 +53,25 @@ def main(db):
     beta = 6
     db_unit = True
     window = np.kaiser(Nn, beta)
-    
+
     # get maximum of window to compensate amplitude
     TFwindow = scipy.fft.fft(window)
     Amax = np.max(Mag(TFwindow, Nn, False))
-    
+
     relog.info("kaiser(beta=%.3f) ScaleAmp=%.3f" % (beta, Amax))
-    
+
     # read V(out), V(out_ref)
     tmp = signal.resample(db["values"].get("V(out)"), Nn)
     vout = series.Series(time, tmp)
-    
+
     tmp = signal.resample(db["values"].get("V(out_ref)"), Nn)
     vout_ref = series.Series(time, tmp)
-    
+
     # calculate the fft
     TFvout = scipy.fft.fft(np.multiply(vout.y, window))
     TFvout_ref = scipy.fft.fft(np.multiply(vout_ref.y, window))
 
-    utils.default_plot_style()
+    utils.graphs.default_plot_style()
     plt.figure(figsize=(4, 6))
     plt.subplot(311)
     plt.semilogx(freq, Mag(TFvout, Nn, db_unit, Amax), 'r-')
@@ -83,7 +83,7 @@ def main(db):
         plt.axis([1e6, 5e8, -120, 0])
     else:
         plt.axis([1e6, 5e8, 0, 0.6])
-        
+
     plt.subplot(312)
     plt.semilogx(freq, Deg(TFvout), 'r--')
     plt.semilogx(freq, Deg(TFvout_ref), 'b--')
@@ -91,7 +91,7 @@ def main(db):
     plt.ylabel("Magnitude [$^\circ$]")
     plt.grid(True, which="both")
     plt.axis([1e6, 5e8, 0, 360])
-    
+
     plt.subplot(313)
     plt.plot(db["time"], db["values"].get("V(out)"), 'g-')
     plt.plot(vout.x * 1e9, vout.y, 'r-')
@@ -99,7 +99,7 @@ def main(db):
     plt.xlabel("Time [ns]")
     plt.ylabel("Voltage [V]") 
     plt.axis([750, 800, 0.5, 2])
-    
+
     plt.tight_layout()
     plt.savefig("./.tmp_sim/spectrum.svg")
 

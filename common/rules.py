@@ -2,21 +2,19 @@
 # coding: utf-8
 
 import os
-import sys
 import copy
 import json
 
 from mako.template import Template
 
-sys.path.append(os.environ["REFLOW"])
-
 import common.utils as utils
-import common.read_sources as read_sources
 import common.verilog as verilog
+import common.read_sources as read_sources
+
 import digital.tools.libgen as libgen
 
 
-@utils.apply_for("*_ana.xlsx")
+@utils.rules.apply_for("*_ana.xlsx")
 def generate_lib(node, *args, **kwargs):
     """
     generate a lib file from the excel file
@@ -48,7 +46,7 @@ def generate_lib(node, *args, **kwargs):
     # generate a simulation verilog file
 
 
-@utils.apply_for("*.v|*.sv")
+@utils.rules.apply_for("*.v|*.sv")
 def add_in_database(node, *args, **kwargs):
     """
     add a database list all blocks and information
@@ -96,7 +94,7 @@ def add_in_database(node, *args, **kwargs):
         fp.write(json.dumps(db, indent=2, sort_keys=True))
 
 
-@utils.apply_for("*.v.mako")
+@utils.rules.apply_for("*.v.mako")
 def generate_file(node, *args, **kwargs):
     """
     generate a verilog file from a template
@@ -110,7 +108,9 @@ def generate_file(node, *args, **kwargs):
         with open(db_path, "r") as fp:
             db = json.load(fp)
     # deserialize
-    db["libs"] = {name: libgen.Lib.from_json(lib) for name, lib in db.get("libs", {}).items()}
+    db["libs"] = {
+        name: libgen.Lib.from_json(lib) for name, lib in db.get("libs", {}).items()
+    }
     db["modules"] = [verilog.Module.from_json(m) for m in db.get("modules", {}).values()]
     # generate file from the template
     _tmp = Template(filename=node.name)

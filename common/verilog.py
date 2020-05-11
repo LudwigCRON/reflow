@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import re
-import json
 from enum import Enum
 
 
@@ -104,10 +103,13 @@ class Module:
                 r"(?:[\t\f ]*" + PATTERN_RNG + r"?[\t\f ]+(\w+)[\t\f ]*)?,?"
                 r"(?:[\t\f ]*" + PATTERN_RNG + r"?[\t\f ]+(\w+)[\t\f ]*)?,?"
             )
-            # ([iInNoOuU]{2}[\w]+t)[\t\f ]*" : match input|output|inout lwercase or uppercase or mix of case
+            # ([iInNoOuU]{2}[\w]+t)[\t\f ]*" : match input|output|inout lowercase or
+            #                                  uppercase or mix of case
             # r"([\w]{3,10})?"               : match type of pins (wire|wor|....)
-            # (\[[\w\-\+\(\)\*\/\$]+:[\w\-\+\(\)\*\/\$]+\])? : match range [msb:lsb] with parameter and operation
-            # [\t\f ]+(\w+)[\t\f ]*)?,?      : match pin name with optional , to separate several pins declaration
+            # (\[[\w\-\+\(\)\*\/\$]+:[\w\-\+\(\)\*\/\$]+\])? : match range [msb:lsb] with
+            #                                                  parameter and operation
+            # [\t\f ]+(\w+)[\t\f ]*)?,?      : match pin name with optional, to separate
+            #                                  several pins declaration
             matches = re.findall(PATTERN, text, re.DOTALL | re.MULTILINE)
             for match in matches:
                 pin_dir, pin_type, *pins = match
@@ -146,7 +148,7 @@ class Module:
         )
 
     def to_dict(self):
-        d = {k: getattr(self, k) for k in self.__slots__ if k is not "pins"}
+        d = {k: getattr(self, k) for k in self.__slots__ if k != "pins"}
         d["pins"] = [p.to_dict() for p in self.pins]
         d["instances"] = [i.to_dict() for i in self.instances]
         return d

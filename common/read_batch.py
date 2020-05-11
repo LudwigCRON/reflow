@@ -153,7 +153,7 @@ def parse_rule(text: str) -> tuple:
     return (None, None, SimType.ALL)
 
 
-def read_config(batch_file: str):
+def read_batch(batch_file: str):
     # parser for config file
     batch = configparser.ConfigParser(
         allow_no_value=True,
@@ -184,7 +184,7 @@ def read_config(batch_file: str):
                 "\n\tor a in this format 'do SIM_TYPE on folder as label:'",
             )
         )
-    except configparser.MissingSectionHeaderError as nse:
+    except configparser.MissingSectionHeaderError:
         # add folder of a tc in default category
         # !! should be processed in normalize!!
         with open(filepath, "r+") as fp:
@@ -211,7 +211,9 @@ def run(
             if not os.path.exists(b):
                 # create the Sources.list
                 with open(l, "w+") as fp:
-                    fp.write("%s\n" % os.path.join("../../", batch.get(rule, "__path__")))
+                    path = batch.get(rule, "__path__")
+                    dedent = ''.join(["../"] * (2 + path.count('/')))
+                    fp.write("%s\n" % os.path.join(dedent, path))
                     for option in batch.options(rule):
                         if not option.startswith("__"):
                             values = batch.get(rule, option, raw=True)
@@ -250,7 +252,7 @@ def run(
 
 
 def main(cwd, sim_only: bool = False, cov_only: bool = False, lint_only: bool = False):
-    batch = read_config(cwd)
+    batch = read_batch(cwd)
     if batch:
         run(cwd, batch, sim_only, cov_only, lint_only)
     else:

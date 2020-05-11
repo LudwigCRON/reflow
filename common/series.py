@@ -44,4 +44,3 @@ class Series(object):
         for i, x in enumerate(self.x):
             if x > new_x:
                 return interp(self.x[i - 1], self.x[i], self.y[i - 1], self.y[i], new_x)
-
