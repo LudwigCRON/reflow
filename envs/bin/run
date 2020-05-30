@@ -32,13 +32,26 @@ import common.read_sources as read_sources
 
 
 # the default configuration
-default_config = os.path.join(REFLOW_DIR, "./default.config")
+default_config = os.path.normpath(os.path.join(REFLOW_DIR, "./default.config"))
 # load a local configuration if there is one
-config_files = [default_config]
+config_files = []
 for file in Path(CURRENT_DIR).rglob("*.config"):
     config_files.append(str(file))
     break
-
+# can investigate parents folders for
+# a hierarchy up to 16 parents deep
+base_path = CURRENT_DIR
+for i in range(16):
+    if not config_files:
+        base_path = os.path.dirname(base_path)
+        for file in os.listdir(base_path):
+            if file.endswith(".config"):
+                config_files.append(
+                    os.path.normpath(os.path.join(base_path, file))
+                )
+    else:
+        break
+config_files = [default_config] + config_files
 
 NO_CALLBACKS = (None, None)
 

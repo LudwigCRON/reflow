@@ -1,0 +1,26 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Fri May 29 23:42:59 2020
+[*]
+[dumpfile] "/home/ludwigcron/Projects/tc_adder/.tmp_sim/run.vcd"
+[dumpfile_mtime] "Fri May 29 23:42:09 2020"
+[dumpfile_size] 457549
+[savefile] "/home/ludwigcron/Projects/tc_adder/waveform.gtkw"
+[timestart] 0
+[size] 1811 967
+[pos] -1 -1
+*-14.418499 15000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[sst_width] 379
+[signals_width] 395
+[sst_expanded] 1
+[sst_vpaned_height] 243
+@420
+tb.a[31:0]
+tb.b[31:0]
+@28
+tb.run_check
+@420
+tb.s_ref[31:0]
+tb.s_rca[31:0]
+[pattern_trace] 1
+[pattern_trace] 0
