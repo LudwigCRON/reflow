@@ -12,13 +12,13 @@ from common.read_sources import resolve_includes
 from common.utils.files import get_type, is_digital
 
 
-WAVE_FORMAT    = "vcd"
+WAVE_FORMAT = "vcd"
 DEFAULT_TMPDIR = utils.get_tmp_folder()
-SRCS           = os.path.join(DEFAULT_TMPDIR, "srcs.list")
-EXE            = os.path.join(DEFAULT_TMPDIR, "run.vvp")
-PARSER_LOG     = os.path.join(DEFAULT_TMPDIR, "parser.log")
-SIM_LOG        = os.path.join(DEFAULT_TMPDIR, "sim.log")
-WAVE           = os.path.join(DEFAULT_TMPDIR, "run.%s" % WAVE_FORMAT)
+SRCS = os.path.join(DEFAULT_TMPDIR, "srcs.list")
+EXE = os.path.join(DEFAULT_TMPDIR, "run.vvp")
+PARSER_LOG = os.path.join(DEFAULT_TMPDIR, "parser.log")
+SIM_LOG = os.path.join(DEFAULT_TMPDIR, "sim.log")
+WAVE = os.path.join(DEFAULT_TMPDIR, "run.%s" % WAVE_FORMAT)
 
 
 def transform_flags(flags: str) -> str:
@@ -27,9 +27,12 @@ def transform_flags(flags: str) -> str:
         flags = flags.replace("-DEFINE ", "+define+")
     if "-define " in flags:
         flags = flags.replace("-define ", "+define+")
-    if "-P" in flags:
-        flags = flags.replace("-P", "+parameter+")
-    return flags
+    if "-PARAM " in flags:
+        flags = flags.replace("-PARAM ", "+parameter+")
+    if "-param " in flags:
+        flags = flags.replace("-param ", "+parameter+")
+    flags = [flag for flag in flags.split(" ") if not flag.startswith("-g")]
+    return " ".join(flags)
 
 
 def prepare(files, PARAMS):
@@ -43,33 +46,43 @@ def prepare(files, PARAMS):
     with open(SRCS, "w+") as fp:
         for include_dir in INCLUDE_DIRS:
             fp.write("+incdir+%s\n" % include_dir)
+        if "TIMESCALE" in PARAMS:
+            fp.write("+timescale+%s\n" % PARAMS["TIMESCALE"])
         if "SIM_FLAGS" in PARAMS:
             for flag in PARAMS["SIM_FLAGS"]:
-                fp.write("%s\n" % transform_flags(flag))
-        if "TIMESCALE" in PARAMS:
-            fp.write("+timescale+%s\n" % PARAMS['TIMESCALE'])
+                tf = transform_flags(flag)
+                if tf:
+                    fp.write("%s\n" % tf)
         for file in FILES:
             if is_digital(file) and get_type(file) not in ["ASSERTIONS", "LIBERTY"]:
                 fp.write("%s\n" % file)
     # estimate appropriate flags
-    generation = "verilog-ams" if any(["AMS" in m for m in MIMES]) else \
-                 "2012" if any(["SYS" in m for m in MIMES]) else "2001"
-    assertions = "-gassertions" if any(["ASSERT" in m for m in MIMES]) else "-gno-assertions"
-    return generation, assertions
+    generation = (
+        "verilog-ams"
+        if any(["AMS" in m for m in MIMES])
+        else "2012"
+        if any(["SYS" in m for m in MIMES])
+        else "2001"
+    )
+    flags = (
+        "-gassertions" if any(["ASSERT" in m for m in MIMES]) else "-gno-assertions",
+        "-gspecify" if any(["-gspec" in p for p in PARAMS.get("SIM_FLAGS", "")]) else "",
+    )
+    return generation, " ".join(flags)
 
 
-def compile(generation, assertions):
+def compile(generation, flags):
     # create the executable sim
     relog.step("Compiling files")
+    print(
+        "iverilog -g%s -grelative-include %s -Wall -o %s -c %s"
+        % (generation, flags, EXE, SRCS)
+    )
     executor.sh_exec(
-        "iverilog -g%s -grelative-include %s -Wall -o %s -c %s" % (
-            generation,
-            assertions,
-            EXE,
-            SRCS
-        ),
+        "iverilog -g%s -grelative-include %s -Wall -o %s -c %s"
+        % (generation, flags, EXE, SRCS),
         PARSER_LOG,
-        MAX_TIMEOUT=20
+        MAX_TIMEOUT=20,
     )
 
 

@@ -37,17 +37,17 @@ def resolve_path(path: str, base: str = "") -> str:
     if i >= 0:
         new_path = os.path.join(
             base[: i + len(platform)],
-            "digital" if utils.files.is_digital(base) else
-            "analog" if utils.files.is_analog(base) else "mixed",
+            "digital"
+            if utils.files.is_digital(base)
+            else "analog"
+            if utils.files.is_analog(base)
+            else "mixed",
             path[1:],
         )
         if os.path.exists(new_path):
             return new_path
     # in platform without domain separation
-    new_path = os.path.join(
-        base[: i + len(platform)],
-        path[1:],
-    )
+    new_path = os.path.join(base[: i + len(platform)], path[1:],)
     if os.path.exists(new_path):
         return new_path
     # not known
@@ -118,7 +118,7 @@ def resolve_dependancies(node, resolved, unresolved) -> None:
     """
     unresolved.append(node)
     for edge in node.edges:
-        if edge not in resolved:
+        if edge not in resolved and edge.name not in node.name:
             if edge in unresolved:
                 raise Exception(
                     "Circular reference detected: %s -> %s" % (node.name, edge.name)
@@ -135,12 +135,12 @@ def check_source_exists(dirpath: str) -> bool:
 
 
 class TokenType(Enum):
-    STRING      = 0
-    SEP         = 1
-    TAG_SEP     = 2
-    PARAM_SEP   = 3
-    INDENT      = 4
-    NEW_LINE    = 5
+    STRING = 0
+    SEP = 1
+    TAG_SEP = 2
+    PARAM_SEP = 3
+    INDENT = 4
+    NEW_LINE = 5
 
 
 def source_tokenizer(buffer):
@@ -160,14 +160,14 @@ def source_tokenizer(buffer):
     """
     for line in buffer:
         start_index = 0
-        is_blank_from_zero, previous, current = True, '', ''
+        is_blank_from_zero, previous, current = True, "", ""
         ln = line.expandtabs(4)
         for pos, current in enumerate(ln):
             # check for indentation
-            if current == ' ' and previous in ['', ' '] and start_index == 0:
+            if current == " " and previous in ["", " "] and start_index == 0:
                 previous = current
                 continue
-            elif current != ' ' and is_blank_from_zero and start_index == 0:
+            elif current != " " and is_blank_from_zero and start_index == 0:
                 yield (TokenType.INDENT, ln[:pos])
                 start_index = pos
             # check for string
@@ -184,21 +184,22 @@ def source_tokenizer(buffer):
                     previous = current
                     continue
                 # report separator
-                if previous == '+' and current == '=':
-                    yield (TokenType.PARAM_SEP, '+=')
-                elif current == '=':
-                    yield (TokenType.PARAM_SEP, '=')
-                elif current == '@':
-                    yield (TokenType.TAG_SEP, '@')
-                elif current == '\n':
-                    yield (TokenType.NEW_LINE, '')
+                if previous == "+" and current == "=":
+                    yield (TokenType.PARAM_SEP, "+=")
+                elif current == "=":
+                    yield (TokenType.PARAM_SEP, "=")
+                elif current == "@":
+                    yield (TokenType.TAG_SEP, "@")
+                elif current == "\n":
+                    yield (TokenType.NEW_LINE, "")
                 else:
                     yield (TokenType.SEP, current)
                 start_index = pos + 1
             previous = current
-            if current != ' ':
+            if current != " ":
                 is_blank_from_zero = False
     yield (TokenType.STRING, ln[start_index:])
+    yield (TokenType.NEW_LINE, "")
 
 
 def read_sources(filepath: str, graph: dict = {}, depth: int = 0):
@@ -278,18 +279,18 @@ def read_sources(filepath: str, graph: dict = {}, depth: int = 0):
                         if parameter_name not in no.params:
                             parameter_value = []
                         # parameter name [=|+=] parameter value till \n
-                        if token == '+=':
+                        if token == "+=":
                             op_increment = True
                         wait_new_line = True
                         path = None
                     else:
-                        parameter_value.append('=')
+                        parameter_value.append("=")
                         continue_append = True
                 elif type == TokenType.NEW_LINE:
                     if parameter_name:
-                        no.params[parameter_name] = [''.join(parameter_value)]
+                        no.params[parameter_name] = ["".join(parameter_value)]
                     # if directory read the pointed sources.list
-                    if path and os.path.isdir(path) and check_source_exists(path):
+                    elif path and os.path.isdir(path) and check_source_exists(path):
                         n, g = read_sources(path, graph, depth + 1)
                         graph.update(g)
                         if node_stack:
@@ -391,12 +392,14 @@ def read_from(sources_list: str, no_logger: bool = False, no_stdout: bool = True
         ts = verilog.find_timescale(node.name)
         if ts:
             sn, su, rn, ru = ts[0]
-            if utils.parsers.evaluate_eng_unit(sn, su) < \
-               utils.parsers.evaluate_eng_unit(*min_ts[0:2]):
+            if utils.parsers.evaluate_eng_unit(sn, su) < utils.parsers.evaluate_eng_unit(
+                *min_ts[0:2]
+            ):
                 min_ts = (sn, su, *min_ts[2:4])
 
-            if utils.parsers.evaluate_eng_unit(rn, ru) < \
-               utils.parsers.evaluate_eng_unit(*min_ts[2:4]):
+            if utils.parsers.evaluate_eng_unit(rn, ru) < utils.parsers.evaluate_eng_unit(
+                *min_ts[2:4]
+            ):
                 min_ts = (*min_ts[0:2], rn, ru)
     if utils.parsers.evaluate_eng_unit(*min_ts[0:2]) == 1.0:
         print("TIMESCALE\t:\t'1ns/100ps'")
