@@ -20,6 +20,8 @@ COLOR specifies the message color.
 
 */
 
+`timescale 1ns/100ps
+
 module log_service;
   integer WARN_COUNT = 0;
   integer ERROR_COUNT = 0;
