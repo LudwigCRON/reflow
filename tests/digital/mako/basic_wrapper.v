@@ -24,6 +24,13 @@ module basic_wrapper (
     output wire            O
     output wire            Ob
 */
+/*======== rs_nor ========
+    M rs_nor: 4 pins and 0 parameters
+    input wire            A
+    input wire            B
+    output wire            O
+    output wire            Ob
+*/
 /*======== sar ========
     M sar: 15 pins and 2 parameters
     input wire            rstb

@@ -61,7 +61,6 @@ def sh_exec(
         if return_code:
             raise subprocess.CalledProcessError(return_code, cmd)
     except (OSError, subprocess.CalledProcessError) as exception:
-        relog.error("Exception occured: ", str(exception))
         return False
     except subprocess.TimeoutExpired:
         relog.error("Unexpected executer timeout")
@@ -125,7 +124,6 @@ def ish_exec(
         if return_code:
             raise subprocess.CalledProcessError(return_code, cmd)
     except (OSError, subprocess.CalledProcessError) as exception:
-        relog.error("Exception occured: ", str(exception))
         return False
     except subprocess.TimeoutExpired:
         relog.error("Unexpected executer timeout")

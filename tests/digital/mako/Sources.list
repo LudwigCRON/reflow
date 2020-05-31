@@ -4,3 +4,4 @@ basic_wrapper.v.mako:
 
 COV_FLAGS =   -NOWARN MCRDEF
 COV_FLAGS+= -define sar.NSTEPS=10
+COV_MODULES=sar

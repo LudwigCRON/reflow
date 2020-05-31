@@ -26,7 +26,7 @@ def run(raw: str):
     if sys.platform == "darwin":
         ltspice = "/Applications/LTspice.app/Contents/MacOS/LTspice"
     elif sys.platform == "unix" or "linux" in sys.platform:
-        ltspice = 'wine "%s"' % shutil.which("XVIIx64.exe")
+        ltspice = 'wine "%s"' % utils.wine.locate("XVIIx64.exe")
         raw = "z:%s" % raw
     else:
         ltspice = "XVIIx64.exe"

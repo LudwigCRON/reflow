@@ -23,14 +23,16 @@ WAVE = os.path.join(DEFAULT_TMPDIR, "run.%s" % WAVE_FORMAT)
 
 def transform_flags(flags: str) -> str:
     flags = flags.strip()
-    if "-DEFINE " in flags:
-        flags = flags.replace("-DEFINE ", "+define+")
-    if "-define " in flags:
-        flags = flags.replace("-define ", "+define+")
-    if "-PARAM " in flags:
-        flags = flags.replace("-PARAM ", "+parameter+")
-    if "-param " in flags:
-        flags = flags.replace("-param ", "+parameter+")
+    # replace any values found by the key
+    matches = {
+        "+define+": ["-DEFINE ", "-define ", "-D", "-d"],
+        "+parameter+": ["-PARAM ", "-param ", "-P", "-p"],
+    }
+    for output, inputs in matches.items():
+        for i in inputs:
+            if i in flags:
+                flags = flags.replace(i, output)
+    # generate a string
     flags = [flag for flag in flags.split(" ") if not flag.startswith("-g")]
     return " ".join(flags)
 
@@ -78,12 +80,18 @@ def compile(generation, flags):
         "iverilog -g%s -grelative-include %s -Wall -o %s -c %s"
         % (generation, flags, EXE, SRCS)
     )
-    executor.sh_exec(
-        "iverilog -g%s -grelative-include %s -Wall -o %s -c %s"
-        % (generation, flags, EXE, SRCS),
-        PARSER_LOG,
-        MAX_TIMEOUT=20,
-    )
+    try:
+        executor.sh_exec(
+            "iverilog -g%s -grelative-include %s -Wall -o %s -c %s"
+            % (generation, flags, EXE, SRCS),
+            PARSER_LOG,
+            MAX_TIMEOUT=20,
+        )
+    # ignore return code error
+    # as message is already displayed in stdout
+    # and in the log file
+    except subprocess.CalledProcessError:
+        pass
 
 
 def run(lint: bool = False):
