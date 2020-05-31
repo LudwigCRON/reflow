@@ -46,13 +46,13 @@ endmodule
   begin log_service.WARN_COUNT += 1; \
   $write("%c[1;33m",27); \
   $display("Warning : [%t] %s", $time, msg); \
-  #1 $write("%c[0m",27); end
+  $write("%c[0m",27); end
 
 `define log_Error(msg) \
   begin log_service.ERROR_COUNT += 1; \
   $write("%c[1;31m",27); \
   $display("Error   : [%t] %s", $time, msg); \
-  #1 $write("%c[0m",27); end
+  $write("%c[0m",27); end
 
 `define log_Fatal(msg) \
   begin $write("%c[1;31m",27); \
@@ -60,7 +60,7 @@ endmodule
   $write("%c[0m",27); \
   $finish; end
 
-// use $sformat for compatibility since $sformat is
+// use $sformat for compatibility since $sformatf is
 // not always supported
 `define log_InfoF(template, a)    $sformat(log_service.__xstr__, template, a);`log_Info(log_service.__xstr__);
 `define log_NoteF(template, a)    $sformat(log_service.__xstr__, template, a);`log_Note(log_service.__xstr__);
@@ -68,7 +68,7 @@ endmodule
 `define log_ErrorF(template, a)   $sformat(log_service.__xstr__, template, a);`log_Error(log_service.__xstr__);
 
 `define log_Terminate \
-  $write("%c[1;37m",27); \
+  begin $write("%c[1;37m",27); \
   if(log_service.ERROR_COUNT > 0 && log_service.WARN_COUNT > 0) \
     $display("Simulation Failed with %0d Errors and %0d Warnings", log_service.ERROR_COUNT, log_service.WARN_COUNT); \
   else if(log_service.ERROR_COUNT > 0) \
@@ -78,4 +78,4 @@ endmodule
   else \
     $display("Simulation Successful"); \
   $write("%c[0m",27); \
-  $finish;
+  $finish; end
