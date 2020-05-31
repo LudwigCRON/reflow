@@ -212,7 +212,7 @@ def run(
                 # create the Sources.list
                 with open(l, "w+") as fp:
                     path = batch.get(rule, "__path__")
-                    dedent = ''.join(["../"] * (2 + path.count('/')))
+                    dedent = "".join(["../"] * (2 + path.count("/")))
                     fp.write("%s\n" % os.path.join(dedent, path))
                     for option in batch.options(rule):
                         if not option.startswith("__"):

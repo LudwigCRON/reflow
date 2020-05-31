@@ -50,3 +50,31 @@ module full_adder (
     endspecify
 
 endmodule
+
+module full_adder_cla (
+    input   wire a,
+    input   wire b,
+    input   wire ci,
+    output  wire s,
+    output  wire p,
+    output  wire g
+);
+
+    wire partial_sum;
+
+    xor sum_0 (partial_sum, a, b);
+    xor sum_1 (s, partial_sum, ci);
+    or  pro_c (p, a, b);
+    and gen_c (g, a, b);
+
+    specify
+        (a => s) = (2, 2.4);
+        (b => s) = (2, 2.4);
+        (ci => s) = (1, 1.2);
+        (a => p) = (0.6, 0.7);
+        (b => p) = (0.6, 0.7);
+        (a => g) = (0.7, 0.8);
+        (b => g) = (0.7, 0.8);
+    endspecify
+
+endmodule

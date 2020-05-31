@@ -374,7 +374,9 @@ def read_from(sources_list: str, no_logger: bool = False, no_stdout: bool = True
                 else:
                     print(node.name, _t, sep=";")
     # list the parameters
-    for node in graph:
+    # from graph on reverse orders to apply the latest
+    # value of the parameter in the hierarchy
+    for node in graph[::-1]:
         if no_stdout and isinstance(node, Node):
             parameters.update(node.params)
         elif no_stdout:

@@ -1,15 +1,19 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Fri May 29 23:42:59 2020
+[*] Sat May 30 20:07:32 2020
 [*]
-[dumpfile] "/home/ludwigcron/Projects/tc_adder/.tmp_sim/run.vcd"
-[dumpfile_mtime] "Fri May 29 23:42:09 2020"
-[dumpfile_size] 457549
-[savefile] "/home/ludwigcron/Projects/tc_adder/waveform.gtkw"
+[dumpfile] "/home/ludwigcron/Projects/reflow/tests/platform/testcases/adder/.tmp_sim/run.vcd"
+[dumpfile_mtime] "Sat May 30 20:06:16 2020"
+[dumpfile_size] 1872241
+[savefile] "/home/ludwigcron/Projects/reflow/tests/platform/testcases/adder/waveform.gtkw"
 [timestart] 0
 [size] 1811 967
 [pos] -1 -1
-*-14.418499 15000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-21.313917 77000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] tb.
+[treeopen] tb.cla.
+[treeopen] tb.cla.adder[0].
+[treeopen] tb.cla.adder[0].fa4.
 [sst_width] 379
 [signals_width] 395
 [sst_expanded] 1
@@ -22,5 +26,42 @@ tb.run_check
 @420
 tb.s_ref[31:0]
 tb.s_rca[31:0]
+@c00420
+tb.s_cla[31:0]
+@28
+(0)tb.s_cla[31:0]
+(1)tb.s_cla[31:0]
+(2)tb.s_cla[31:0]
+(3)tb.s_cla[31:0]
+(4)tb.s_cla[31:0]
+(5)tb.s_cla[31:0]
+(6)tb.s_cla[31:0]
+(7)tb.s_cla[31:0]
+(8)tb.s_cla[31:0]
+(9)tb.s_cla[31:0]
+(10)tb.s_cla[31:0]
+(11)tb.s_cla[31:0]
+(12)tb.s_cla[31:0]
+(13)tb.s_cla[31:0]
+(14)tb.s_cla[31:0]
+(15)tb.s_cla[31:0]
+(16)tb.s_cla[31:0]
+(17)tb.s_cla[31:0]
+(18)tb.s_cla[31:0]
+(19)tb.s_cla[31:0]
+(20)tb.s_cla[31:0]
+(21)tb.s_cla[31:0]
+(22)tb.s_cla[31:0]
+(23)tb.s_cla[31:0]
+(24)tb.s_cla[31:0]
+(25)tb.s_cla[31:0]
+(26)tb.s_cla[31:0]
+(27)tb.s_cla[31:0]
+(28)tb.s_cla[31:0]
+(29)tb.s_cla[31:0]
+(30)tb.s_cla[31:0]
+(31)tb.s_cla[31:0]
+@1401600
+-group_end
 [pattern_trace] 1
 [pattern_trace] 0

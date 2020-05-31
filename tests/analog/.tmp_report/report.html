@@ -1,0 +1,195 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        :root,
+        html {
+            font-family: Lato, Arial, Helvetica;
+        }
+
+        summary {
+            margin: 0;
+            padding: 0.125rem 1rem;
+            background: #65BBA9;
+            color: #FFF;
+            font-size: 1.125rem;
+            text-transform: uppercase;
+        }
+
+        details {
+            margin: 1rem 0;
+            padding: 0;
+        }
+
+        details h3 {
+            padding: 0.125rem;
+            background: #CCC;
+            font-size: 1rem;
+        }
+
+        details h3~* {
+            margin-bottom: 1rem;
+        }
+
+        details h3:not(:first-child) {
+            margin: 0;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%
+        }
+
+        thead,
+        th {
+            background: #CCC;
+            border: 0;
+        }
+
+        tr:nth-child(2n+1) {
+            background: #EEE;
+        }
+
+        td:first-child {
+            text-align: left;
+            padding-left: 1em;
+        }
+
+        td {
+            text-align: center;
+        }
+    </style>
+    <script>
+        document.addEventListener("readystatechange", function() {
+            if (document.readyState === "complete") {
+                var expand_all_btn = document.querySelector("#expand_all_btn");
+                expand_all_btn.addEventListener("click", function() {
+                    let details = document.querySelectorAll("details");
+                    for(let i = 0; i < details.length; i++) {
+                        details[i].setAttribute("open", "true");
+                    }
+                }, true);
+
+                var close_all_btn = document.querySelector("#close_all_btn");
+                close_all_btn.addEventListener("click", function() {
+                    let details = document.querySelectorAll("details");
+                    for(let i = 0; i < details.length; i++) {
+                        details[i].removeAttribute("open");
+                    }
+                }, true);
+            }
+        }, true);
+    </script>
+</head>
+
+<body>
+    
+    <h1>analog</h1>
+    <h2>Friday, 22. May 2020 15:57</h2>
+    <p>
+        <em>Errors:</em>0
+        <br>
+        <em>Warnings:</em>0
+        <br>
+        <em>Elapsed Time:</em>39.392s
+    </p>
+    <button id="expand_all_btn">Expand All</button>
+    <button id="close_all_btn">Close All</button>
+    <table>
+        <thead>
+            <th>name</th>
+            <th>lint</th>
+            <th>simulation</th>
+            <th>coverage</th>
+            <th>total time</th>
+        </thead>
+        <tbody>
+            <tr>
+                <td>
+                    <a href="#ltspice">
+                        ltspice
+                    </a>
+                </td>
+                <td>-</td>
+                <td>4/4</td>
+                <td>-</td>
+                <td>28.632s</td>
+            </tr>
+            <tr>
+                <td>
+                    <a href="#others">
+                        others
+                    </a>
+                </td>
+                <td>-</td>
+                <td>-</td>
+                <td>-</td>
+                <td>-</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <details id="ltspice">
+        <summary>
+            ltspice
+        </summary>
+        <h3>Lint</h3>
+        <div class="warnings">No lints</div>
+
+        <h3>Simulation</h3>
+        <table>
+            <thead>
+                <th>id</th>
+                <th>warnings</th>
+                <th>errors</th>
+                <th>total time</th>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>ota</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>6.24s</td>
+                </tr>
+                <tr>
+                    <td>filter</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>9.529s</td>
+                </tr>
+                <tr>
+                    <td>schmitt</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>8.54s</td>
+                </tr>
+                <tr>
+                    <td>xor</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>5.25s</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>Code coverage</h3>
+        <div class="warnings">No coverage simulations</div>
+    </details>
+    <details id="others">
+        <summary>
+            others
+        </summary>
+        <h3>Lint</h3>
+        <div class="warnings">No lints</div>
+
+        <h3>Simulation</h3>
+        <div class="warnings">No simulations</div>
+
+        <h3>Code coverage</h3>
+        <div class="warnings">No coverage simulations</div>
+    </details>
+</body>
+
+</html>

@@ -1,5 +1,7 @@
 // Ripple-Carry-Adder
 // traditionnal one
+`timescale 1ns/100ps
+
 module rca #(
     parameter WIDTH = 32
 ) (

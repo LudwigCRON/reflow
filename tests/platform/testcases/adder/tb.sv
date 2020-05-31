@@ -2,6 +2,7 @@
 
 module tb;
 
+parameter TCLK = 32;
 parameter WIDTH = 32;
 
 reg  [WIDTH-1:0] a;
@@ -23,14 +24,14 @@ begin: test
         run_check = 1'b0;
         a = $urandom();//_range(0, 2**32);
         b = $urandom();//_range(0, 2**32);
-        #(15ns);
+        #((TCLK-1) * 1ns);
         run_check = 1'b1;
         #(1ns);
     end
 end
 
 //======== DUTS ========
-// traditionnal one
+// traditional one
 rca #(
     .WIDTH(WIDTH)
 ) rca (
@@ -40,12 +41,22 @@ rca #(
     .c()
 );
 
+cla #(
+    .WIDTH(WIDTH/4)
+) cla (
+    .a(a),
+    .b(b),
+    .s(s_cla),
+    .c()
+);
+
 //======== Checker ========
 assign s_ref = a + b;
 
 always @(posedge run_check)
 begin: sum_check
-    if (s_rca != s_ref) `log_Error("Wrong sum result");
+    if (s_rca != s_ref) `log_Error("Wrong ripple-carry-adder sum result");
+    if (s_cla != s_ref) `log_Error("Wrong carry-lookahead-adder sum result");
 end
 
 

@@ -1,2 +1,4 @@
 tb.sv
-/design/adder/rca
+/design/adder
+
+SIM_FLAGS=-gspecify -PARAM tb.TCLK=25
