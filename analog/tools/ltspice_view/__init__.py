@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # coding: utf-8
 
+import io
 import os
 import sys
 import shutil
@@ -27,12 +28,14 @@ def run(raw: str):
         ltspice = "/Applications/LTspice.app/Contents/MacOS/LTspice"
     elif sys.platform == "unix" or "linux" in sys.platform:
         ltspice = 'wine "%s"' % utils.wine.locate("XVIIx64.exe")
-        raw = "z:%s" % raw
+        window_path = io.StringIO()
+        executor.sh_exec("winepath -w '%s'" % raw, window_path, NOERR=True, NOOUT=True)
+        raw = window_path.getvalue().strip().replace("\\", "/")
     else:
         ltspice = "XVIIx64.exe"
     # start the simulation
     print(raw)
-    executor.sh_exec("%s %s" % (ltspice, raw), SIM_LOG)
+    executor.sh_exec("%s %s" % (ltspice, raw), SIM_LOG, NOERR=True)
     return 0, 0  # relog.get_stats(SIM_LOG)
 
 

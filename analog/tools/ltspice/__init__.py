@@ -61,13 +61,17 @@ def run(asc: str):
         ltspice = "/Applications/LTspice.app/Contents/MacOS/LTspice"
     elif sys.platform == "unix" or "linux" in sys.platform:
         ltspice = 'wine "%s"' % utils.wine.locate("XVIIx64.exe")
+        # to speed up wine
+        # wine reg add 'HKEY_CURRENT_USER\Software\Wine\Direct3D' /v MaxVersionGL /t REG_DWORD /d 0x30003 /f
+        # winetricks orm=backbuffer glsl=disable for NVIDIA driver
+        # do not allow the WM to decorate window
         window_path = io.StringIO()
         executor.sh_exec("winepath -w '%s'" % asc, window_path, NOERR=True, NOOUT=True)
-        asc = window_path.getvalue().strip()
+        asc = window_path.getvalue().strip().replace("\\", "/")
     else:
         ltspice = "XVIIx64.exe"
     # start the simulation
-    gen = executor.ish_exec('%s -Run "%s"' % (ltspice, asc), SIM_LOG, MAX_TIMEOUT=300)
+    gen = executor.ish_exec('%s -Run "%s"' % (ltspice, asc), SIM_LOG, MAX_TIMEOUT=300, NOERR=True)
     proc = next(gen)
     # watch the log file to determine when
     # the simulation ends

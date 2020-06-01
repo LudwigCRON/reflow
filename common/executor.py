@@ -89,6 +89,7 @@ def ish_exec(
     SHELL: bool = False,
     CWD: str = None,
     ENV: object = None,
+    NOERR: bool = False
 ):
     """
     simplify code for executing shell command
@@ -97,13 +98,16 @@ def ish_exec(
     try:
         if CWD is None and ENV is None:
             proc = subprocess.Popen(
-                tokens, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=SHELL
+                tokens,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE if NOERR else subprocess.STDOUT,
+                shell=SHELL
             )
         elif ENV is None:
             proc = subprocess.Popen(
                 tokens,
                 stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
+                stderr=subprocess.PIPE if NOERR else subprocess.STDOUT,
                 shell=SHELL,
                 cwd=CWD,
             )
@@ -111,7 +115,7 @@ def ish_exec(
             proc = subprocess.Popen(
                 tokens,
                 stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
+                stderr=subprocess.PIPE if NOERR else subprocess.STDOUT,
                 shell=SHELL,
                 cwd=CWD,
                 env=ENV,
