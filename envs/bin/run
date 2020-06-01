@@ -45,13 +45,13 @@ for i in range(16):
     if not config_files:
         base_path = os.path.dirname(base_path)
         for file in os.listdir(base_path):
-            if file.endswith(".config"):
-                config_files.append(
-                    os.path.normpath(os.path.join(base_path, file))
-                )
+            file_path = os.path.normpath(os.path.join(base_path, file))
+            if file.endswith(".config") and os.path.isfile(file_path):
+                config_files.append(file_path)
     else:
         break
 config_files = [default_config] + config_files
+
 
 NO_CALLBACKS = (None, None)
 
