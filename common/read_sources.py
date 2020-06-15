@@ -63,7 +63,7 @@ def resolve_includes(files: list) -> list:
             # iterate through include statement detected
             for inc in verilog.find_includes(file):
                 # resolve the path and store it
-                includes.append(resolve_path("/" + inc, file))
+                includes.append(resolve_path(inc, parent_dir))
     # return the list of include to only
     # have non redundante parent directory
     includes = list(set(map(os.path.dirname, includes)))
