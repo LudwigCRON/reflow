@@ -59,14 +59,9 @@ def prepare(files, PARAMS):
             if is_digital(file) and get_type(file) not in ["ASSERTIONS", "LIBERTY"]:
                 fp.write("%s\n" % file)
     # estimate appropriate flags
-    generation = (
-        "verilog-ams"
-        if any(["AMS" in m for m in MIMES])
-        else "2012"
-        if any(["SYS" in m for m in MIMES])
-        else "2001"
-    )
+    generation = "2012" if any(["SYS" in m for m in MIMES]) else "2001"
     flags = (
+        "-gverilog-ams" if any(["AMS" in m for m in MIMES]) else "-gno-verilog-ams",
         "-gassertions" if any(["ASSERT" in m for m in MIMES]) else "-gno-assertions",
         "-gspecify" if any(["-gspec" in p for p in PARAMS.get("SIM_FLAGS", "")]) else "",
     )
