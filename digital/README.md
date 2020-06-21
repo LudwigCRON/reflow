@@ -14,22 +14,29 @@ a tool supporting it.**
 Supported commands from run in this flow are:
 - run lint
 - run sim
+- run cov
 - run synth
 - run view-sim
 
 ## Supported tools
+For linting:
+- [iverilog](./tools/iverilog/README.md)
+
 For simulation, the tools supported are in order
 of support priority:
-- iverilog
+- [iverilog](./tools/iverilog/README.md)
 - xcellium
 - ncsim
 - verilator
 
-For synthesis, only YOSYS is supported yet. However, the procedure setup for YOSYS is compatible with other tools such as Genus.
+To view generated waveforms:
+- [gtkwave](./tools/gtkwave/README.md)
 
-*If one create an issue for it and many votes
-in favor of the support of Genus, its 
-integration in run will be then top priorities*
+For synthesis:
+- yosys
+
+For code coverage:
+- covered
 
 ## Future Improvements
 - DEFINE paramaters and values are not yet propagated to iverilog
@@ -37,9 +44,6 @@ integration in run will be then top priorities*
 - IP_MODULES is not propagated yet
 
 ### coming commands
-- run cov
-
-    *code coverage analysis*
 
 - run view-cov
 

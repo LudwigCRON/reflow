@@ -1,5 +1,6 @@
 # ReFlow
-ReFlow is a combination of scriptlets for the simulations of one of the following domain:
+ReFlow is a combination of scriptlets for the simulations of one of 
+the following domain:
 - analog
 - digital
 - mixed-signal
@@ -7,7 +8,8 @@ ReFlow is a combination of scriptlets for the simulations of one of the followin
 For each domain, tools dedicated to it are gathered in a folder **tools**.
 A tool is a collection of scripts to perform a precise task inside a
 folder entitled by the name of the tool. It results then in a greater
-flexibility and personalisation of the flow. The hierarchy can be represented as follow:
+flexibility and personalisation of the flow. The hierarchy can be 
+represented as follow:
 
 ```
 + analog
@@ -45,11 +47,11 @@ all the tools in the same folder linking to the version
 of tools desired. And make the tool available to the user 
 by adding them in `$PATH`.
 
-A great tool is `ml` http://modules.sourceforge.net/ and 
-streamline the process of providing a collection of program
-available in `$PATH`.
-
-This allows one to change easily the version of the tools.
+A great tools such as [module](http://modules.sourceforge.net/),
+or [Lmod](https://lmod.readthedocs.io/en/latest/) streamline the
+process of providing a collection of version specific program
+available in `$PATH`. This allows one to change easily the version 
+of the tools.
 
 A more basic strategy would consist in "sourcing" a bash
 script editing `$PATH` or changing link of programs.
@@ -87,8 +89,8 @@ usage: run [-h] [-c]
 Reflow Unified ruNner
 ---------------------
 
-For arguments starting with by double dash --,the double dashes can be omitted.
-ex: 'run sim' is equal to 'run --sim'
+For arguments starting with by double dash --,the double dashes can be
+omitted. ex: 'run sim' is equal to 'run --sim'
 
 optional arguments:
   -h, --help   show this help message and exit
@@ -104,7 +106,8 @@ optional arguments:
 
 
 ## Configuration
-The tool looks into the project directory for any configuration files having the extension ***.config**.
+The tool looks into the project directory for any configuration files
+having the extension ***.config**.
 It _shall_ exist only one configuration in a given directory tree.
 
 If there is none, the default configuration applies.
@@ -125,9 +128,11 @@ For almost all flows (Analog/Digital/Mixed), there share common commands:
 - run tree
 - run clean
 
-In addition to that, some domain can support extra command (the digital also support run cov, view-cov, synth).
+In addition to that, some domain can support extra command
+(the digital also support run cov, view-cov, synth).
 
-For the sake of lazyness, one can write ```run -c [sim|lint|cov|...]``` to perform a run clean before the operation ordered.
+For the sake of lazyness, one can write ```run -c [sim|lint|...]```
+to perform a run clean before the operation ordered.
 
 For more details which command is supported by which domain
 please refer to their associated documentation:
