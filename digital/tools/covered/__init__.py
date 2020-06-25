@@ -3,6 +3,7 @@ import os
 import sys
 
 from pathlib import Path
+from mako.template import Template
 
 sys.path.append(os.environ["REFLOW"])
 
@@ -16,10 +17,13 @@ from common.read_sources import resolve_includes
 
 # create temporary directory
 DEFAULT_TMPDIR = utils.get_tmp_folder()
+SCORE_SCRIPT = os.path.join(DEFAULT_TMPDIR, "score_%d.cmd")
 COV_DATABASE = os.path.join(DEFAULT_TMPDIR, "coverage.cdd")
 COV_REPORT = os.path.join(DEFAULT_TMPDIR, "coverage.rpt")
 COV_LOG = os.path.join(DEFAULT_TMPDIR, "coverage.log")
-SRCS = os.path.join(DEFAULT_TMPDIR, "cov_srcs.list")
+DB_LIST = os.path.join(DEFAULT_TMPDIR, "db.list")
+
+TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 def prepare(files, PARAMS):
@@ -40,22 +44,47 @@ def prepare(files, PARAMS):
     FILES = [f for f, m in files]
     MIMES = list(set([m for f, m in files]))
     INCLUDE_DIRS = resolve_includes(FILES)
-    # generate file list
+    # generate data
     modules = PARAMS["COV_MODULES"][0].split(" ") if "COV_MODULES" in PARAMS else ["top"]
     instances = verilog.find_instances(PARAMS["TOP_MODULE"])
+    top_module, *_ = verilog.find_modules(PARAMS["TOP_MODULE"])[0]
     instances = [(mod, instance) for mod, pa, instance, po in instances if mod in modules]
     generation = 3 if any(["SYS" in m for m in MIMES]) else 2
     excludes = PARAMS["IP_MODULES"][0].split(" ") if "IP_MODULES" in PARAMS else []
-    with open(SRCS, "w+") as fp:
-        for include_dir in INCLUDE_DIRS:
-            fp.write("-I %s\n" % include_dir)
-        for file in FILES:
-            fp.write("-v %s\n" % file)
-        for module in excludes:
-            fp.write("-e %s\n" % module)
-        fp.write("-%s %s\n" % (WAVE_FORMAT, WAVE))
-        fp.write("-Wignore\n")
-    return modules, instances, generation
+    # generate scripts
+    if instances:
+        for k, instance in enumerate(instances):
+            data = {
+                "modules": modules,
+                "instance": instance,
+                "generation": generation,
+                "excludes": excludes,
+                "includes": INCLUDE_DIRS,
+                "files": FILES,
+                "vcd": WAVE,
+                "top": top_module
+            }
+            # generate command file
+            _tmp = Template(filename=os.path.join(TOOLS_DIR, "./score.cmd.mako"))
+            with open(SCORE_SCRIPT % k, "w+") as fp:
+                fp.write(_tmp.render_unicode(**data))
+        return len(instances)
+    else:
+        data = {
+            "modules": modules,
+            "instance": "",
+            "generation": generation,
+            "excludes": excludes,
+            "includes": INCLUDE_DIRS,
+            "files": FILES,
+            "vcd": WAVE,
+            "top": top_module
+        }
+        # generate command file
+        _tmp = Template(filename=os.path.join(TOOLS_DIR, "./score.cmd.mako"))
+        with open(SCORE_SCRIPT % 0, "w+") as fp:
+            fp.write(_tmp.render_unicode(**data))
+    return 1
 
 
 def main(files, PARAMS):
@@ -63,45 +92,30 @@ def main(files, PARAMS):
     top = "tb"
     if os.path.isfile(PARAMS["TOP_MODULE"]):
         top, _, _, _ = verilog.find_modules(PARAMS["TOP_MODULE"])[0]
-    # give the module to cover
-    modules, instances, generation = prepare(files, PARAMS)
+    # generate script to load files and add parameters
+    n_i = prepare(files, PARAMS)
     # scoring
     relog.step("Scoring simulations")
-    if len(instances) > 1:
-        for k, i in enumerate(instances):
-            module, instance = i
-            COV_K_DATABASE = COV_DATABASE.replace(".cdd", "_%d.cdd" % k)
-            executor.sh_exec(
-                "covered score -t %s -i %s.%s -f %s -g %s -o %s"
-                % (module, top, instance, SRCS, generation, COV_K_DATABASE),
-                COV_LOG,
-                mode="a+",
-                MAX_TIMEOUT=300,
-                SHOW_CMD=True,
-            )
-    elif instances:
+    for k in range(n_i):
+        COV_K_DATABASE = COV_DATABASE.replace(".cdd", "_%d.cdd" % k)
         executor.sh_exec(
-            "covered score -t %s -i %s.%s -f %s -g %s -o %s"
-            % (top, top, instances[0][1], SRCS, generation, COV_DATABASE),
+            "covered score -f %s -o %s"
+            % (SCORE_SCRIPT % k, COV_K_DATABASE),
             COV_LOG,
             mode="a+",
             MAX_TIMEOUT=300,
             SHOW_CMD=True,
         )
-    else:
+    # register dbs
+    with open(DB_LIST, "w+") as list:
+        list.writelines([
+            COV_DATABASE.replace(".cdd", "_%d.cdd" % k) for k in range(n_i)
+        ])
+    # merging into first db
+    if n_i > 1:
+        relog.step("Merging")
         executor.sh_exec(
-            "covered score -t %s -f %s -g %s -o %s" % (top, SRCS, generation, COV_DATABASE),
-            COV_LOG,
-            mode="a+",
-            MAX_TIMEOUT=300,
-            SHOW_CMD=True,
-        )
-    # merging
-    relog.step("Merging")
-    if len(instances) > 1:
-        cdds = [COV_DATABASE.replace(".cdd", "_%d.cdd" % k) for k in range(len(instances))]
-        executor.sh_exec(
-            "covered merge -o %s %s" % (COV_DATABASE, " ".join(cdds)),
+            "covered merge -f %s" % DB_LIST,
             COV_LOG,
             "a+",
             MAX_TIMEOUT=240,
@@ -110,7 +124,7 @@ def main(files, PARAMS):
     # reporting
     relog.step("Generating report")
     executor.sh_exec(
-        "covered report %s" % COV_DATABASE, COV_REPORT, MAX_TIMEOUT=30, SHOW_CMD=False
+        "covered report -m ltcfram -d s %s" % COV_DATABASE.replace(".cdd", "_0.cdd"), COV_REPORT, MAX_TIMEOUT=30, SHOW_CMD=False
     )
     return relog.get_stats(COV_LOG)
 
