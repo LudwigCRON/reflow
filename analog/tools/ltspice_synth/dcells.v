@@ -126,6 +126,17 @@ module SRLATCH (
     end
 endmodule
 
+module DLATCH (
+    input  wire D,
+    input  wire G,
+    output reg  Q
+);
+    always @(D or G)
+    begin
+        if (G) Q = D;
+    end
+endmodule
+
 module DFF (
     input  wire D,
     input  wire C,

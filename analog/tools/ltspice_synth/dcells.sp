@@ -111,6 +111,16 @@ A1 1 2 0 0 0 3 0 0 XOR
 A1 1 2 0 0 0 4 3 0 SRFLOP Td=1ps
 .ENDS SRLATCH
 
+* D-latch
+*              D G Q
+*              | | |
+.SUBCKT DLATCH 1 2 3
+X1 1 4 NOT
+X2 1 2 5 AND2
+X3 4 2 6 AND2
+A1 5 6 0 0 0 0 3 0 SRFLOP Td=1ps
+.ENDS DLATCH
+
 ***************************
 * FLOPS
 ***************************
