@@ -33,7 +33,11 @@ def transform_flags(flags: str) -> str:
             if i in flags:
                 flags = flags.replace(i, output)
     # generate a string
-    flags = [flag for flag in flags.split(" ") if not flag.startswith("-g")]
+    flags = [
+        flag
+        for flag in flags.split(" ")
+        if not flag.startswith("-g") and not flag.startswith("-W")
+    ]
     return " ".join(flags)
 
 
@@ -45,15 +49,19 @@ def prepare(files, PARAMS):
     FILES = [f for f, m in files]
     MIMES = list(set([m for f, m in files]))
     INCLUDE_DIRS = resolve_includes(FILES)
+    CURRENT_DIR = os.getcwd()
+    PLATFORM_NAME = os.getenv("PLATFORM")
+    PLATFORM_DIR = CURRENT_DIR[: CURRENT_DIR.find(PLATFORM_NAME) + len(PLATFORM_NAME)]
     with open(SRCS, "w+") as fp:
         for include_dir in INCLUDE_DIRS:
             fp.write("+incdir+%s\n" % include_dir)
+        fp.write("+incdir+%s\n" % PLATFORM_DIR)
         if "TIMESCALE" in PARAMS:
             fp.write("+timescale+%s\n" % PARAMS["TIMESCALE"])
         if "SIM_FLAGS" in PARAMS:
             for flag in PARAMS["SIM_FLAGS"]:
                 tf = transform_flags(flag)
-                if tf:
+                if tf and tf[:2] not in ("-m", "-M"):
                     fp.write("%s\n" % tf)
         for file in FILES:
             if is_digital(file) and get_type(file) not in ["ASSERTIONS", "LIBERTY"]:
@@ -64,6 +72,7 @@ def prepare(files, PARAMS):
         "-gverilog-ams" if any(["AMS" in m for m in MIMES]) else "-gno-verilog-ams",
         "-gassertions" if any(["ASSERT" in m for m in MIMES]) else "-gno-assertions",
         "-gspecify" if any(["-gspec" in p for p in PARAMS.get("SIM_FLAGS", "")]) else "",
+        "-Wtimescale" if any(["-Wtimes" in p for p in PARAMS.get("SIM_FLAGS", "")]) else "",
     )
     return generation, " ".join(flags)
 
@@ -71,14 +80,23 @@ def prepare(files, PARAMS):
 def compile(generation, flags):
     # create the executable sim
     relog.step("Compiling files")
-    print(
-        "iverilog -g%s -grelative-include %s -Wall -o %s -c %s"
-        % (generation, flags, EXE, SRCS)
+    # remove inherited timescale flags
+    WARNING_FLAGS = (
+        "-Wanachronisms "
+        "-Wimplicit "
+        "-Wimplicit-dimensions "
+        "-Wportbind "
+        "-Wselect-range "
+        "-Wsensitivity-entire-array "
     )
+    # print(
+    #     "iverilog -g%s -grelative-include %s %s -o %s -c %s"
+    #     % (generation, flags, WARNING_FLAGS, EXE, SRCS)
+    # )
     try:
         executor.sh_exec(
-            "iverilog -g%s -grelative-include %s -Wall -o %s -c %s"
-            % (generation, flags, EXE, SRCS),
+            "iverilog -g%s -grelative-include %s %s -o %s -c %s"
+            % (generation, flags, WARNING_FLAGS, EXE, SRCS),
             PARSER_LOG,
             MAX_TIMEOUT=20,
         )
@@ -89,7 +107,7 @@ def compile(generation, flags):
         pass
 
 
-def run(lint: bool = False):
+def run(lint: bool = False, PARAMS: dict = {}):
     # linting files
     if lint:
         relog.step("Linting files")
@@ -98,7 +116,17 @@ def run(lint: bool = False):
     # run the simulation
     else:
         relog.step("Running simulation")
-        executor.sh_exec("vvp %s -%s" % (EXE, WAVE_FORMAT), SIM_LOG, MAX_TIMEOUT=300)
+        VVP_FLAGS = []
+        if "SIM_FLAGS" in PARAMS:
+            for flag in PARAMS["SIM_FLAGS"]:
+                tf = transform_flags(flag)
+                if tf and tf[:2] in ("-m", "-M"):
+                    VVP_FLAGS.append(tf)
+        executor.sh_exec(
+            "vvp %s %s -%s" % (EXE, "".join(VVP_FLAGS), WAVE_FORMAT),
+            SIM_LOG,
+            MAX_TIMEOUT=300,
+        )
         # move the dumpfile to TMPDIR
         if os.path.exists(WAVE):
             os.remove(WAVE)
@@ -110,7 +138,7 @@ def run(lint: bool = False):
 def main(files, params, lint: bool = False):
     flags = prepare(files, params)
     compile(*flags)
-    stats = run(lint)
+    stats = run(lint, params)
     return stats
 
 
