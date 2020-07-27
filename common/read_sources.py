@@ -288,7 +288,7 @@ def read_sources(filepath: str, graph: dict = {}, depth: int = 0):
                         continue_append = True
                 elif type == TokenType.NEW_LINE:
                     if parameter_name:
-                        no.params[parameter_name] = ["".join(parameter_value)]
+                        no.params[parameter_name.strip()] = ["".join(parameter_value)]
                     # if directory read the pointed sources.list
                     elif path and os.path.isdir(path) and check_source_exists(path):
                         n, g = read_sources(path, graph, depth + 1)
