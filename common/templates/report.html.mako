@@ -1,4 +1,5 @@
 <%!
+import os
 from datetime import datetime
 
 def to_time(str_t_ms):
@@ -116,14 +117,14 @@ def get_block_name(block: dict):
 
 <body>
     <% sblocks = sorted(blocks, key=get_block_name) %>
-    <h1>${name}</h1>
+    <h1>${os.path.basename(os.getcwd())}</h1>
     <h2>${datetime.now().strftime("%A, %d. %B %Y %H:%M")}</h2>
     <p>
-        <em>Errors:</em>${"%d" % errors}
+        <em>Errors:</em>${"%d" % sum((b.get("errors") for b in blocks))}
         <br>
-        <em>Warnings:</em>${"%d" % warnings}
+        <em>Warnings:</em>${"%d" % sum((b.get("warnings") for b in blocks))}
         <br>
-        <em>Elapsed Time:</em>${to_time(total_time)}
+        <em>Elapsed Time:</em>${to_time(sum((b.get("total_time") for b in blocks)))}
     </p>
     <button id="expand_all_btn">Expand All</button>
     <button id="close_all_btn">Close All</button>
@@ -143,17 +144,17 @@ def get_block_name(block: dict):
                         ${block.get("name")}
                     </a>
                 </td>
-                % if block.get("nb_lint") > 0:
+                % if block.get("nb_lint"):
                 <td>${"%d" % block.get("lint")}/${"%d" % block.get("nb_lint")}</td>
                 % else:
                 <td>-</td>
                 % endif
-                % if block.get("nb_simulation") > 0:
+                % if block.get("nb_simulation"):
                 <td>${"%d" % block.get("simulation")}/${"%d" % block.get("nb_simulation")}</td>
                 % else:
                 <td>-</td>
                 % endif
-                % if block.get("nb_coverage") > 0:
+                % if block.get("nb_coverage"):
                 <td>${"%d" % block.get("coverage")}/${"%d" % block.get("nb_coverage")}</td>
                 % else:
                 <td>-</td>

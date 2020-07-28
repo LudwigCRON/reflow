@@ -315,7 +315,6 @@ if __name__ == "__main__":
         # add some stats to the db
         utils.stats.add_extra_stats(db_batch)
         db_batch["name"] = "others"
-        print(db_batch)
         db["blocks"].append(db_batch)
         # read the html template
         t = Template(
