@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import sys
+from itertools import chain
 
 sys.path.append(os.environ["REFLOW"])
 
@@ -69,8 +70,22 @@ def prepare(files, PARAMS):
     # estimate appropriate flags
     generation = "2012" if any(["SYS" in m for m in MIMES]) else "2001"
     flags = (
-        "-gverilog-ams" if any(["AMS" in m for m in MIMES]) else "-gno-verilog-ams",
-        "-gassertions" if any(["ASSERT" in m for m in MIMES]) else "-gno-assertions",
+        "-gverilog-ams"
+        if any(
+            [
+                "AMS" in m or "-gverilog-ams" in m
+                for m in chain(MIMES, PARAMS.get("SIM_FLAGS", ""))
+            ]
+        )
+        else "-gno-verilog-ams",
+        "-gassertions"
+        if any(
+            [
+                "ASSERT" in m or "-gassert" in m
+                for m in chain(MIMES, PARAMS.get("SIM_FLAGS", ""))
+            ]
+        )
+        else "-gno-assertions",
         "-gspecify" if any(["-gspec" in p for p in PARAMS.get("SIM_FLAGS", "")]) else "",
         "-Wtimescale" if any(["-Wtimes" in p for p in PARAMS.get("SIM_FLAGS", "")]) else "",
     )
@@ -99,6 +114,7 @@ def compile(generation, flags):
             % (generation, flags, WARNING_FLAGS, EXE, SRCS),
             PARSER_LOG,
             MAX_TIMEOUT=20,
+            SHOW_CMD=True,
         )
     # ignore return code error
     # as message is already displayed in stdout
@@ -126,6 +142,7 @@ def run(lint: bool = False, PARAMS: dict = {}):
             "vvp %s %s -%s" % (EXE, "".join(VVP_FLAGS), WAVE_FORMAT),
             SIM_LOG,
             MAX_TIMEOUT=300,
+            SHOW_CMD=True,
         )
         # move the dumpfile to TMPDIR
         if os.path.exists(WAVE):
