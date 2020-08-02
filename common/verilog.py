@@ -4,8 +4,8 @@ import re
 from enum import Enum
 
 
-PATTERN_DIR         = r"((?!initial)[iInNoOuU]{2}[\w]+t)"
-PATTERN_RNG         = r"(\[\s*[\w\-\+\(\)\*\/\$]+\s*:\s*[\w\-\+\(\)\*\/\$]+\s*\])"
+PATTERN_DIR = r"((?!initial)[iInNoOuU]{2}[\w]+t)"
+PATTERN_RNG = r"(\[\s*[\w\-\+\(\)\*\/\$]+\s*:\s*[\w\-\+\(\)\*\/\$]+\s*\])"
 PATTERN_RNG_CAPTURE = r"\[\s*([\w\-\+\(\)\*\/\$]+)\s*:\s*([\w\-\+\(\)\*\/\$]+)\s*\]"
 
 
@@ -14,11 +14,24 @@ def evaluate(text: str):
     if number return the parsed number
     otherwise a text
     """
-    if not isinstance(text, str):
-        return text
-    if all([c in "0123456789." for c in text]):
-        return float(text)
-    return text
+    PATTERN_NUM = "(?:(?P<size>\d+)?'(?P<base>h|d|b))?(?P<value>[0-9A-Fa-f_]+)"
+    matches = re.finditer(PATTERN_NUM, text, re.DOTALL | re.MULTILINE)
+    for match in matches:
+        # default to integer 32-bits = 32'd0
+        md = match.groupdict()
+        base = md.get("base") or "d"
+        size = int(md.get("size") or "32", 10)
+        try:
+            value = (
+                int(md.get("value"), 16)
+                if base == "h"
+                else int(md.get("value"), 2)
+                if base == "b"
+                else int(md.get("value"), 10)
+            )
+        except ValueError:
+            return text
+    return value
 
 
 # ===== Instances ======
@@ -33,12 +46,12 @@ class Instance:
     def parse_parameters(self, text: str):
         if text is None:
             return
-        PATTERN_0 = r".([\w\-]+)\(([\w\-]+)\)"
-        PATTERN_1 = r"([\w\-]+)"
+        PATTERN_0 = r".([\w\-\_]+)\s*\(([\w\-]+)\)"
+        PATTERN_1 = r"([\w\-\_]+)"
         if "," not in text and text.strip():
             self.params[text.strip()] = None
             return
-        for token in text.split(','):
+        for token in text.split(","):
             # named mapping
             matches = re.finditer(PATTERN_0, token, re.DOTALL | re.MULTILINE)
             for match in matches:
@@ -54,7 +67,7 @@ class Instance:
         return "I %s: from module %s and %d parameters" % (
             self.name,
             self.module_name,
-            len(self.params) - 1
+            len(self.params) - 1,
         )
 
     def to_dict(self):
@@ -81,14 +94,18 @@ class Module:
     def parse_parameters(self, text: str):
         if text is None:
             return
-        PATTERN = r"parameter\s*([\w\-]+)\s*(?:=\s*([\w\-]+))?"
+        PATTERN = (
+            r"parameter\s*(?P<type>integer|real|signed|time|realtime)?"
+            r"\s*(?P<size>\[[\w\-:]+\])?"
+            r"\s*(?P<name>[\w\-]+)"
+            r"\s*(?:=\s*(?P<value>[\w\-\(\)]+))?"
+        )
         matches = re.finditer(PATTERN, text, re.DOTALL | re.MULTILINE)
         for match in matches:
-            grps = match.groups()
-            if len(grps) == 2:
-                self.params[grps[0]] = evaluate(grps[1])
-            else:
-                self.params[grps[0]] = 0
+            md = match.groupdict()
+            name = md.pop("name")
+            md["value"] = evaluate(md.pop("value"))
+            self.params[name] = md
 
     def parse_pins(self, text: str):
         if text is None:
@@ -137,14 +154,17 @@ class Module:
                             p.parse_rng(rng)
                             # if discrepancy prefer data from input
                             if p.width != self.pins[i].width:
-                                raise Exception("Unexpected discrepancy on %s in module %s, check linter output" % (p.name, self.name))
+                                raise Exception(
+                                    "Unexpected discrepancy on %s in module %s, check linter output"
+                                    % (p.name, self.name)
+                                )
                             self.pins[i] = p
 
     def __str__(self):
         return "M %s: %d pins and %d parameters" % (
             self.name,
             len(self.pins),
-            len(self.params)
+            len(self.params),
         )
 
     def to_dict(self):
@@ -165,20 +185,20 @@ class Module:
 
 # ======= Pins =========
 class PinDirections(str, Enum):
-    INPUT  = ">",
-    OUTPUT = "<",
-    INOUT  = "<>"
+    INPUT = (">",)
+    OUTPUT = ("<",)
+    INOUT = "<>"
 
 
 class PinTypes(str, Enum):
-    WIRE       = "-",
-    WOR        = "|",
-    WAND       = "&",
-    REG        = "r",
-    REAL       = "d",
-    ELECTRICAL = "e",
-    VOLTAGE    = "v",
-    CURRENT    = "i"
+    WIRE = ("-",)
+    WOR = ("|",)
+    WAND = ("&",)
+    REG = ("r",)
+    REAL = ("d",)
+    ELECTRICAL = ("e",)
+    VOLTAGE = ("v",)
+    CURRENT = "i"
 
 
 class Pins:
@@ -260,11 +280,13 @@ def find_modules(filepath: str) -> list:
     with their parameters and the input/output ports
     """
     ans = []
-    PATTERN = (r"(?!end)module"
-               r"\s*([\w\-]+)"
-               r"\s*(#\((?:[\w\.\(\),':\r\t\n \/\*\=\-]*)\))?"
-               r"\s*(\([\w\.\(\),'~\r\t\n \/\*\=\-\+:\[\]]*\)|)"
-               r"([\w\W\n\t]*?)endmodule")
+    PATTERN = (
+        r"(?!end)module"
+        r"\s*([\w\-]+)"
+        r"\s*(#\((?:[\w\.\(\),':\r\t\n \/\*\=\-]*)\))?"
+        r"\s*(\([\w\.\(\),'~\r\t\n \/\*\=\-\+:\[\]]*\)|)"
+        r"([\w\W\n\t]*?)endmodule"
+    )
     # ^(?!end)module : start with module but not endmodule
     # \s*([\w\-]+)   : skip some spaces then get the name of the module
     # \s*(#*\([\w\s\=\-,\.\/\*]+\))? : get the optional param bloc with comments (//, /* */)
@@ -284,11 +306,12 @@ def find_instances(filepath: str) -> list:
     list modules declared in the filepath
     """
     ans = []
-    PATTERN = (r"(^\s*[\w\-]+)"
-               r"\s+(?:#\(([\w\.\(\),\r\t\n \/\*\=\-\+:\[\]]*)\))?"
-               r"\s*([\w\-]+)\s*\("
-               r"([\w\.\(\)\r\t\n \/\*\=\-\+:\[\]~&|^.,'{}?]*)\);"
-               )
+    PATTERN = (
+        r"(^\s*[\w\-]+)"
+        r"\s+(?:#\(([\w\.\(\),\r\t\n \/\*\=\-\+:\[\]]*)\))?"
+        r"\s*([\w\-]+)\s*\("
+        r"([\w\.\(\)\r\t\n \/\*\=\-\+:\[\]~&|^.,'{}?]*)\);"
+    )
     # filter the first group to not be module
     KEYWORDS = ["module", "define", "begin", "task", "function", "case", "endcase"]
     with open(filepath, "r+") as fp:
@@ -317,7 +340,9 @@ def find_timescale(filepath: str):
     find timescale and return the step and accuracy
     """
     ans = []
-    PATTERN = r"timescale\s*(?:([\d\.]+)\s*([umnpf]?s))\s*(?:\\|\/)(?:([\d\.]+)\s*([umnpf]?s))"
+    PATTERN = (
+        r"timescale\s*(?:([\d\.]+)\s*([umnpf]?s))\s*(?:\\|\/)(?:([\d\.]+)\s*([umnpf]?s))"
+    )
     with open(filepath, "r+") as fp:
         for line in fp.readlines():
             ans.extend(re.findall(PATTERN, line))
