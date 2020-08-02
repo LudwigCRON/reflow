@@ -34,31 +34,29 @@ endmodule
 
 `define log_Note(msg) \
   begin $write("%c[1;32m",27); \
-  $display("Note    : [%t] %s", $time, msg); \
+  $display("NOTE: [%t] %s", $time, msg); \
   $write("%c[0m",27); end
 
 `define log_Info(msg) \
   begin $write("%c[0;37m",27); \
-  $display("Info    : [%t] %s", $time, msg); \
+  $info("[%t] %s", $time, msg); \
   $write("%c[0m",27); end
 
 `define log_Warning(msg) \
   begin log_service.WARN_COUNT += 1; \
   $write("%c[1;33m",27); \
-  $display("Warning : [%t] %s", $time, msg); \
+  $warning("[%t] %s", $time, msg); \
   $write("%c[0m",27); end
 
 `define log_Error(msg) \
   begin log_service.ERROR_COUNT += 1; \
   $write("%c[1;31m",27); \
-  $display("Error   : [%t] %s", $time, msg); \
+  $error("[%t] %s", $time, msg); \
   $write("%c[0m",27); end
 
 `define log_Fatal(msg) \
   begin $write("%c[1;31m",27); \
-  $display("Fatal   : [%t] %s", $time, msg); \
-  $write("%c[0m",27); \
-  $finish; end
+  $fatal(1, "[%t] %s%c[0m", $time, msg, 27); end
 
 // use $sformat for compatibility since $sformatf is
 // not always supported

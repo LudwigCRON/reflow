@@ -17,7 +17,7 @@ def sh_exec(
     CWD: str = None,
     ENV: object = None,
     NOERR: bool = False,
-    NOOUT: bool = False
+    NOOUT: bool = False,
 ):
     """
     simplify code for executing shell command
@@ -29,7 +29,7 @@ def sh_exec(
                 tokens,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE if NOERR else subprocess.STDOUT,
-                shell=SHELL
+                shell=SHELL,
             )
         elif ENV is None:
             proc = subprocess.Popen(
@@ -57,7 +57,7 @@ def sh_exec(
                 fp.write("%s\n" % cmd)
             for line in proc.stdout:
                 if not NOOUT:
-                    sys.stdout.write(line.decode("utf-8"))
+                    sys.stdout.write(format_line(line.decode("utf-8")))
                 # remove color code of log.vh amond other things
                 content = list(relog.filter_stream(line))
                 if content:
@@ -66,12 +66,12 @@ def sh_exec(
                 fp.close()
         elif not NOOUT:
             for line in proc.stdout:
-                sys.stdout.write(line.decode("utf-8"))
+                sys.stdout.write(format_line(line.decode("utf-8")))
         proc.stdout.close()
         return_code = proc.wait()
         if return_code:
             raise subprocess.CalledProcessError(return_code, cmd)
-    except (OSError, subprocess.CalledProcessError) as exception:
+    except (OSError, subprocess.CalledProcessError):
         return False
     except subprocess.TimeoutExpired:
         relog.error("Unexpected executer timeout")
@@ -89,7 +89,7 @@ def ish_exec(
     SHELL: bool = False,
     CWD: str = None,
     ENV: object = None,
-    NOERR: bool = False
+    NOERR: bool = False,
 ):
     """
     simplify code for executing shell command
@@ -101,7 +101,7 @@ def ish_exec(
                 tokens,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE if NOERR else subprocess.STDOUT,
-                shell=SHELL
+                shell=SHELL,
             )
         elif ENV is None:
             proc = subprocess.Popen(
@@ -126,22 +126,35 @@ def ish_exec(
                 if SHOW_CMD:
                     fp.write("%s\n" % cmd)
                 for line in proc.stdout:
-                    sys.stdout.write(line.decode("utf-8"))
+                    sys.stdout.write(format_line(line.decode("utf-8")))
                     # remove color code of log.vh amond other things
                     content = list(relog.filter_stream(line))
                     if content:
                         fp.write("%s\n" % content[0])
         else:
             for line in proc.stdout:
-                sys.stdout.write(line.decode("utf-8"))
+                sys.stdout.write(format_line(line.decode("utf-8")))
         proc.stdout.close()
         return_code = proc.wait()
         if return_code:
             raise subprocess.CalledProcessError(return_code, cmd)
-    except (OSError, subprocess.CalledProcessError) as exception:
+    except (OSError, subprocess.CalledProcessError):
         return False
     except subprocess.TimeoutExpired:
         relog.error("Unexpected executer timeout")
         return False
     else:
         return True
+
+
+def format_line(line: str) -> str:
+    # iverilog file info from log
+    tags = ["info:", "warning:", "note:", "error:", "fatal:"]
+    l = line[: min(32, len(line))].casefold()
+    if any([l.find(tag) >= 0 for tag in tags]):
+        l = line.split(":", 3)
+        return ": ".join((l[0], l[-1]))
+    # remove log.svh second line giving time and scope info
+    if l.find("time:") >= 0:
+        return ""
+    return line

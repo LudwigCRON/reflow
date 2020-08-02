@@ -89,7 +89,7 @@ def prepare(files, PARAMS):
         "-gspecify" if any(["-gspec" in p for p in PARAMS.get("SIM_FLAGS", "")]) else "",
         "-Wtimescale" if any(["-Wtimes" in p for p in PARAMS.get("SIM_FLAGS", "")]) else "",
     )
-    return generation, " ".join(flags)
+    return generation, " ".join(flags).strip()
 
 
 def compile(generation, flags):
