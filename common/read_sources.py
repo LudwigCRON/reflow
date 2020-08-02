@@ -9,6 +9,7 @@ from enum import Enum
 from collections import defaultdict, Iterable
 
 import common.rules
+import common.relog as relog
 import common.utils as utils
 import common.verilog as verilog
 
@@ -362,6 +363,9 @@ def read_from(sources_list: str, no_logger: bool = False, no_stdout: bool = True
     graph = {}
     try:
         graph = read_sources(sources_list, {})
+    except FileNotFoundError as e:
+        relog.error("'%s' not found" % (e.filename or e.filename2))
+        exit(1)
     except Exception:
         traceback.print_exc(file=sys.stderr)
     # display the list of files and their mime-type
