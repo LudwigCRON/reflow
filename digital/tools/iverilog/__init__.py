@@ -26,8 +26,8 @@ def transform_flags(flags: str) -> str:
     flags = flags.strip()
     # replace any values found by the key
     matches = {
-        "+define+": ["-DEFINE ", "-define ", "-D", "-d"],
-        "+parameter+": ["-PARAM ", "-param ", "-P", "-p"],
+        "+define+": ["-DEFINE+", "-define+", "-D", "-d"],
+        "+parameter+": ["-PARAM+", "-param+", "-P", "-p"],
     }
     for output, inputs in matches.items():
         for i in inputs:
@@ -60,7 +60,9 @@ def prepare(files, PARAMS):
         if "TIMESCALE" in PARAMS:
             fp.write("+timescale+%s\n" % PARAMS["TIMESCALE"])
         if "SIM_FLAGS" in PARAMS:
+            print(PARAMS["SIM_FLAGS"])
             for flag in PARAMS["SIM_FLAGS"]:
+                print(flag)
                 tf = transform_flags(flag)
                 if tf and tf[:2] not in ("-m", "-M"):
                     fp.write("%s\n" % tf)
