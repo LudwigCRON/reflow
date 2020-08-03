@@ -179,7 +179,7 @@ def source_tokenizer(buffer):
             # check for separator
             elif current in "@:=+\n":
                 # skip + as if can be part of the += token
-                if current in "+":
+                if current in "+" and ln[pos + 1] != "=":
                     previous = current
                     continue
                 if ln[start_index:pos]:
