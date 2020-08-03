@@ -89,7 +89,13 @@ def prepare(files, PARAMS):
         "-gspecify" if any(["-gspec" in p for p in PARAMS.get("SIM_FLAGS", "")]) else "",
         "-Wtimescale" if any(["-Wtimes" in p for p in PARAMS.get("SIM_FLAGS", "")]) else "",
     )
-    return generation, " ".join(flags).strip()
+    VVP_FLAGS = []
+    if "SIM_FLAGS" in PARAMS:
+        for flag in PARAMS["SIM_FLAGS"]:
+            tf = transform_flags(flag)
+            if tf and tf[:2] in ("-m"):
+                VVP_FLAGS.append(tf)
+    return generation, " ".join(chain(flags, VVP_FLAGS)).strip()
 
 
 def compile(generation, flags):
@@ -104,10 +110,6 @@ def compile(generation, flags):
         "-Wselect-range "
         "-Wsensitivity-entire-array "
     )
-    # print(
-    #     "iverilog -g%s -grelative-include %s %s -o %s -c %s"
-    #     % (generation, flags, WARNING_FLAGS, EXE, SRCS)
-    # )
     try:
         executor.sh_exec(
             "iverilog -g%s -grelative-include %s %s -o %s -c %s"
@@ -138,8 +140,9 @@ def run(lint: bool = False, PARAMS: dict = {}):
                 tf = transform_flags(flag)
                 if tf and tf[:2] in ("-m", "-M"):
                     VVP_FLAGS.append(tf)
+        VVP_FLAGS = " ".join(VVP_FLAGS)
         executor.sh_exec(
-            "vvp %s %s -%s" % (EXE, "".join(VVP_FLAGS), WAVE_FORMAT),
+            "vvp -i %s %s -%s" % (EXE, VVP_FLAGS, WAVE_FORMAT),
             SIM_LOG,
             MAX_TIMEOUT=300,
             SHOW_CMD=True,

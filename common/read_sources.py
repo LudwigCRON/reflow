@@ -2,6 +2,7 @@
 
 import os
 import sys
+import shlex
 import argparse
 import traceback
 
@@ -289,7 +290,14 @@ def read_sources(filepath: str, graph: dict = {}, depth: int = 0):
                         continue_append = True
                 elif type == TokenType.NEW_LINE:
                     if parameter_name:
-                        no.params[parameter_name.strip()] = ["".join(parameter_value)]
+                        _val = no.params[parameter_name.strip()]
+                        if _val and op_increment:
+                            _val.extend(shlex.split("".join(parameter_value)))
+                            no.params[parameter_name.strip()] = _val
+                        else:
+                            no.params[parameter_name.strip()] = shlex.split(
+                                "".join(parameter_value)
+                            )
                     # if directory read the pointed sources.list
                     elif path and os.path.isdir(path) and check_source_exists(path):
                         n, g = read_sources(path, graph, depth + 1)
