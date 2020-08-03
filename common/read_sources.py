@@ -247,7 +247,6 @@ def read_sources(filepath: str, graph: dict = {}, depth: int = 0):
                     continue_append = False
                 # string or parameter value with '=' or '+='
                 elif type == TokenType.STRING:
-                    print(token)
                     if parameter_name is not None:
                         if op_increment or continue_append:
                             parameter_value.append(token)
