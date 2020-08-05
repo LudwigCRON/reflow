@@ -22,7 +22,7 @@ def evaluate(text: str):
         base = md.get("base") or "d"
         size = int(md.get("size") or "32", 10)
         try:
-            value = (
+            return (
                 int(md.get("value"), 16)
                 if base == "h"
                 else int(md.get("value"), 2)
@@ -31,7 +31,7 @@ def evaluate(text: str):
             )
         except ValueError:
             return text
-    return value
+    return text
 
 
 # ===== Instances ======
