@@ -60,14 +60,14 @@ endmodule
 
 // use $sformat for compatibility since $sformatf is
 // not always supported
-`define log_InfoF1(template, a)    $sformat(log_service.__xstr__, template, a);`log_Info(log_service.__xstr__);
-`define log_NoteF1(template, a)    $sformat(log_service.__xstr__, template, a);`log_Note(log_service.__xstr__);
-`define log_WarningF1(template, a) $sformat(log_service.__xstr__, template, a);`log_Warning(log_service.__xstr__);
-`define log_ErrorF1(template, a)   $sformat(log_service.__xstr__, template, a);`log_Error(log_service.__xstr__);
-`define log_InfoF2(template, a, b)    $sformat(log_service.__xstr__, template, a, b);`log_Info(log_service.__xstr__);
-`define log_NoteF2(template, a, b)    $sformat(log_service.__xstr__, template, a, b);`log_Note(log_service.__xstr__);
-`define log_WarningF2(template, a, b) $sformat(log_service.__xstr__, template, a, b);`log_Warning(log_service.__xstr__);
-`define log_ErrorF2(template, a, b)   $sformat(log_service.__xstr__, template, a, b);`log_Error(log_service.__xstr__);
+`define log_InfoF1(template, a)       begin $sformat(log_service.__xstr__, template, a);`log_Info(log_service.__xstr__) end;
+`define log_NoteF1(template, a)       begin $sformat(log_service.__xstr__, template, a);`log_Note(log_service.__xstr__) end;
+`define log_WarningF1(template, a)    begin $sformat(log_service.__xstr__, template, a);`log_Warning(log_service.__xstr__) end;
+`define log_ErrorF1(template, a)      begin $sformat(log_service.__xstr__, template, a);`log_Error(log_service.__xstr__) end;
+`define log_InfoF2(template, a, b)    begin $sformat(log_service.__xstr__, template, a, b);`log_Info(log_service.__xstr__) end;
+`define log_NoteF2(template, a, b)    begin $sformat(log_service.__xstr__, template, a, b);`log_Note(log_service.__xstr__) end;
+`define log_WarningF2(template, a, b) begin $sformat(log_service.__xstr__, template, a, b);`log_Warning(log_service.__xstr__) end;
+`define log_ErrorF2(template, a, b)   begin $sformat(log_service.__xstr__, template, a, b);`log_Error(log_service.__xstr__) end;
 
 `define log_Terminate \
   begin $write("%c[1;37m",27); \
