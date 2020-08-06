@@ -248,6 +248,7 @@ if __name__ == "__main__":
         wave_format = getattr(Config, sim).get("format")
         # view the waveforms
         utils.tools.launch_tool(tool_name, "view", NO_CALLBACKS, wave_format)
+        os.remove(os.path.join(utils.get_tmp_folder(), "./view.stats"))
 
     # synthesis
     if args.synth:
