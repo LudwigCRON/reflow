@@ -14,6 +14,10 @@ def evaluate(text: str):
     if number return the parsed number
     otherwise a text
     """
+    # cannot be a verilog number if
+    if any([c in text for c in "*+/()GHIJKLMNOPQRSTUVXYZghijklmnopqrstuvxyz"]):
+        return text
+    # otherwise try to parse it
     PATTERN_NUM = "(?:(?P<size>\d+)?'(?P<base>h|d|b))?(?P<value>[0-9A-Fa-f_]+)"
     matches = re.finditer(PATTERN_NUM, text, re.DOTALL | re.MULTILINE)
     for match in matches:
@@ -46,22 +50,19 @@ class Instance:
     def parse_parameters(self, text: str):
         if text is None:
             return
-        PATTERN_0 = r".([\w\-\_]+)\s*\(([\w\-]+)\)"
+        PATTERN_0 = r".(?P<name>[\w\-\_]+)\s*\((?P<value>[\w\-\*\/\+]+)\)"
         PATTERN_1 = r"([\w\-\_]+)"
-        if "," not in text and text.strip():
-            self.params[text.strip()] = None
-            return
         for token in text.split(","):
             # named mapping
             matches = re.finditer(PATTERN_0, token, re.DOTALL | re.MULTILINE)
             for match in matches:
-                grps = match.groups()
-                self.params[grps[0]] = evaluate(grps[1])
+                md = match.groupdict()
+                self.params[md.get("name")] = evaluate(md.get("value"))
             # order based mapping
             matches = re.finditer(PATTERN_1, token)
             for match in matches:
                 grps = match.groups()
-                self.params["unresolved"].append(evaluate(grps[0]))
+                self.params["unresolved"].append(evaluate(grps[-1]))
 
     def __str__(self):
         return "I %s: from module %s and %d parameters" % (
