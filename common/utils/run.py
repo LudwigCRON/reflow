@@ -46,10 +46,28 @@ def get_sources(src, out: str = None, prefix: str = "") -> tuple:
 
 
 # ==== get working directory ====
-def get_tmp_folder():
+def get_tmp_folder(type: str = "sim") -> str:
+    """
+    get working directory path for a given
+    simulation type or use the specified working
+    directory via WORK_DIR env. variable
+    """
     if "WORK_DIR" in os.environ:
         return os.path.normpath(os.environ["WORK_DIR"])
-    return os.path.normpath(os.path.join(os.getcwd(), ".tmp_sim"))
+    if "WORK_DIR_PREFIX" in os.environ:
+        return os.path.normpath(
+            os.path.join(os.getcwd(), ".%s_%s" % (os.environ["WORK_DIR_PREFIX"], type))
+        )
+    return os.path.normpath(os.path.join(os.getcwd(), ".tmp_%s" % type))
+
+
+def get_tmp_folder_name(type: str = "sim", prefix: str = "") -> str:
+    """
+    get folder name for a given simulation type
+    """
+    if "WORK_DIR_PREFIX" in os.environ:
+        return "%s.%s_%s" % (prefix, os.environ["WORK_DIR_PREFIX"], type)
+    return "%s.tmp_%s" % (prefix, type)
 
 
 # ======== json encoder ========

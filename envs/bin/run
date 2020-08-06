@@ -9,6 +9,7 @@ import signal
 import shutil
 import argparse
 
+from enum import Enum
 from pathlib import Path
 from datetime import datetime
 
@@ -25,32 +26,42 @@ sys.path.append(CURRENT_DIR)
 
 import common.utils as utils
 import common.relog as relog
-import common.read_batch as read_batch
-import common.read_config as read_config
 import common.design_tree as design_tree
+import common.read_batch as read_batch
 import common.read_sources as read_sources
+from common.read_config import Config, locate_config_files
 
 
-# the default configuration
-default_config = os.path.normpath(os.path.join(REFLOW_DIR, "./default.config"))
-# load a local configuration if there is one
-config_files = []
-for file in Path(CURRENT_DIR).rglob("*.config"):
-    config_files.append(str(file))
-    break
-# can investigate parents folders for
-# a hierarchy up to 16 parents deep
-base_path = CURRENT_DIR
-for i in range(16):
-    if not config_files:
-        base_path = os.path.dirname(base_path)
-        for file in os.listdir(base_path):
-            file_path = os.path.normpath(os.path.join(base_path, file))
-            if file.endswith(".config") and os.path.isfile(file_path):
-                config_files.append(file_path)
-    else:
-        break
-config_files = [default_config] + config_files
+class SimType(Enum):
+    DIGITAL = 0
+    ANALOG = 1
+    MIXED = 2
+
+
+def prepare_task(type: str = "sim", use_custom_logger: bool = False):
+    # define working directory
+    os.environ["WORK_DIR"] = os.path.join(
+        CURRENT_DIR, utils.get_tmp_folder_name(type, "./")
+    )
+    os.makedirs(os.environ["WORK_DIR"], exist_ok=True)
+    # run simulation
+    relog.step("Listing files")
+    files, params = read_sources.read_from(CURRENT_DIR, no_logger=True)
+    # determine the type of simulation
+    digital_only = all((utils.files.is_digital(file) for file, _ in files))
+    analog_only = all((utils.files.is_digital(file) for file, _ in files))
+    if digital_only and not use_custom_logger:
+        files.insert(
+            0, (os.path.join(REFLOW_DIR, "digital/packages/log.svh"), "SYSTEM_VERILOG"),
+        )
+    sim_type = (
+        SimType.DIGITAL
+        if digital_only
+        else SimType.ANALOG
+        if analog_only
+        else SimType.MIXED
+    )
+    return (sim_type, files, params)
 
 
 NO_CALLBACKS = (None, None)
@@ -108,32 +119,36 @@ if __name__ == "__main__":
     # if not arguments is provided print help
     if not any(dict(args._get_kwargs()).values()):
         parser.print_help()
+        exit(0)
+
+    # the default configuration
+    default_config = os.path.normpath(os.path.join(REFLOW_DIR, "./default.config"))
+    # load a local configuration if there is one
+    config_files = [default_config] + locate_config_files(CURRENT_DIR)
+    if len(config_files) == 1:
+        relog.info("No config file found. Fallback on the default")
     # load the configuration
-    config = read_config.read_configs(config_files)
-    os.environ["TECH_LIB"] = config.get("TECH_LIB", "")
-    if "PLATFORM" not in os.environ:
-        os.environ["PLATFORM"] = config.get("PLATFORM", "ganymede")
+    Config.read_configs(config_files)
+    Config.set_env({"TECH_LIB": "technology.TECH_LIB", "PLATFORM": "reflow.PLATFORM"})
+
     # clean tmp files
     if args.clean:
-        for work_dir in Path(CURRENT_DIR).rglob("**/.tmp_sim"):
-            shutil.rmtree(work_dir)
-        for work_dir in Path(CURRENT_DIR).rglob("**/.tmp_cov"):
-            shutil.rmtree(work_dir)
-        for work_dir in Path(CURRENT_DIR).rglob("**/.tmp_lint"):
-            shutil.rmtree(work_dir)
-        for work_dir in Path(CURRENT_DIR).rglob("**/.tmp_batch"):
-            shutil.rmtree(work_dir)
+        for t in ("sim", "cov", "lint", "branch"):
+            for work_dir in Path(CURRENT_DIR).rglob(utils.get_tmp_folder_name(t, "**/")):
+                shutil.rmtree(work_dir)
+
     # perform a collection of simulation
     if args.batch:
         # define working directory
-        os.environ["WORK_DIR"] = os.path.join(CURRENT_DIR, "./.tmp_batch/")
+        batch_path = utils.get_tmp_folder_name("batch", "./")
+        os.environ["WORK_DIR"] = os.path.join(CURRENT_DIR, batch_path)
         # run simulations
         t_start = time.time() * 1000.0
         read_batch.main(CURRENT_DIR, args.sim, args.cov, args.lint)
         t_end = time.time() * 1000.0
         # remove previous stats
-        if os.path.exists("./.tmp_batch/batch.stats"):
-            os.remove("./.tmp_batch/batch.stats")
+        if os.path.exists("%s/batch.stats" % batch_path):
+            os.remove("%s/batch.stats" % batch_path)
         # cumulate stats
         db_batch = {}
         for stats_path in Path(CURRENT_DIR).rglob("**/*.stats"):
@@ -157,47 +172,34 @@ if __name__ == "__main__":
             fp.write("Warnings: %d\n" % db_batch["Warnings"])
             fp.write("Errors: %d\n" % db_batch["Errors"])
             fp.write("Sim. Time: %d\n" % (t_end - t_start))
-        exit(0)
+
     # check lint error on the design
     if args.lint:
-        # define working directory
-        os.environ["WORK_DIR"] = os.path.join(CURRENT_DIR, "./.tmp_lint/")
-        # run lint
-        relog.step("Listing files")
-        files, params = read_sources.read_from(CURRENT_DIR)
-        # determine the simulation type
-        IS_DIG_SIM = all((utils.files.is_digital(file) for file, _ in files))
-        if not IS_DIG_SIM:
+        type, files, params = prepare_task(type="lint")
+        if type is not SimType.DIGITAL:
             relog.error("cannot lint mixed signal or analog simulations")
             exit(0)
         # launch the linter without callback
         utils.tools.launch_tool(
-            config["DIG_LINTER_TOOL"], "lint", NO_CALLBACKS, files, params, lint=True
+            Config.tools.get("DIG_LINTER"), "lint", NO_CALLBACKS, files, params, lint=True
         )
+
     # display hierarchy of the design
     if args.tree:
-        relog.step("Listing files")
-        files, params = read_sources.read_from(CURRENT_DIR)
+        type, files, params = prepare_task(type="tree")
         design_tree.main(files, params)
+
     # run a simulation
     if args.sim:
-        # define working directory
-        os.environ["WORK_DIR"] = os.path.join(CURRENT_DIR, "./.tmp_sim/")
-        # run simulation
-        relog.step("Listing files")
-        files, params = read_sources.read_from(CURRENT_DIR)
-        # determine the simulation type
-        IS_DIG_SIM = all((utils.files.is_digital(file) for file, _ in files))
-        if not IS_DIG_SIM:
-            files, params = read_sources.read_from(CURRENT_DIR, no_logger=True)
-        IS_ANA_SIM = all((utils.files.is_analog(file) for file, _ in files))
+        type, files, params = prepare_task(type="sim")
         # load the simulator script
-        if IS_DIG_SIM and not IS_ANA_SIM:
-            tool_name = config["DIG_SIMULATOR_TOOL"]
-        elif IS_ANA_SIM and not IS_DIG_SIM:
-            tool_name = config["ANA_SIMULATOR_TOOL"]
+        if type is SimType.DIGITAL:
+            tool_name = Config.tools.get("DIG_SIMULATOR")
+        elif type is SimType.ANALOG:
+            tool_name = Config.tools.get("ANA_SIMULATOR")
         else:
             relog.error("Not yet implementd mixed signal simulation")
+            relog.error("do a mix synthesis and call the spice netlist")
             exit(0)
 
         # create callbacks
@@ -209,7 +211,7 @@ if __name__ == "__main__":
                 warnings_errors = []
                 raw_parser = utils.tools.import_tool(
                     "raw_parser",
-                    "%s.py" % config["ANA_WAVEFORM_PARSER"],
+                    "%s.py" % Config.tools.get("ANA_WAVEFORM_PARSER"),
                     os.path.join(REFLOW_DIR, "./analog/tools/parsers/"),
                 )
                 cwd = CURRENT_DIR.replace(".tmp_batch/", "")
@@ -219,47 +221,59 @@ if __name__ == "__main__":
                     warnings_errors.append(s.main(waves))
                 return numpy.nansum(warnings_errors, axis=0)
 
-            if IS_ANA_SIM:
+            if type is SimType.ANALOG:
                 return (pre_sim, post_sim)
             return NO_CALLBACKS
 
         # execute simulation
         utils.tools.launch_tool(tool_name, "sim", _callbacks(), files, params)
+
     # show waveforms
     if args.view_sim:
-        # define working directory
-        os.environ["WORK_DIR"] = os.path.join(CURRENT_DIR, "./.tmp_sim/")
-        # determine the simulation type
-        files, params = read_sources.read_from(CURRENT_DIR)
-        IS_DIG_SIM = all((utils.files.is_digital(file) for file, _ in files))
-        if not IS_DIG_SIM:
-            files, params = read_sources.read_from(CURRENT_DIR, no_logger=True)
-        IS_ANA_SIM = all((utils.files.is_analog(file) for file, _ in files))
+        type, files, params = prepare_task(type="sim")
         # load the simulator script
-        if IS_DIG_SIM and not IS_ANA_SIM:
-            tool_name = config["DIG_WAVEFORM_VIEWER"]
+        if type is SimType.DIGITAL:
+            tool_name = Config.tools.get("DIG_WAVEFORM_VIEWER")
             wave_ext = "vcd"
-        elif IS_ANA_SIM and not IS_DIG_SIM:
-            tool_name = config["ANA_WAVEFORM_VIEWER"]
+        elif type is SimType.ANALOG:
+            tool_name = Config.tools.get("ANA_WAVEFORM_VIEWER")
             wave_ext = "raw"
         else:
             relog.error("Not yet implementd mixed signal simulation")
             exit(0)
         # view the waveforms
         utils.tools.launch_tool(tool_name, "view", NO_CALLBACKS, wave_ext)
+
     # synthesis
     if args.synth:
-        # define working directory
-        os.environ["WORK_DIR"] = os.path.join(CURRENT_DIR, "./.tmp_synth/")
-        os.makedirs(os.environ["WORK_DIR"], exist_ok=True)
-        files, params = read_sources.read_from(CURRENT_DIR)
+        type, files, params = prepare_task(type="synth")
         # load the simulator script
-        tool_name = config["DIG_SYNTHESIS_TOOL"]
+        tool_name = Config.tools.get("DIG_SYNTHESIS")
         utils.tools.launch_tool(tool_name, "synth", NO_CALLBACKS, files, params, "verilog")
+
+    # code coverage
+    if args.cov:
+        type, files, params = prepare_task(type="cov")
+        # load the simulator script
+        if type is SimType.DIGITAL:
+            tool_name = Config.tools.get("DIG_COVERAGE")
+        else:
+            relog.error("Not yet implementd mixed signal or analog simulations")
+            exit(0)
+        # execute simulation
+        utils.tools.launch_tool(tool_name, "cov", NO_CALLBACKS, files, params)
+
+    # view coverage
+    if args.view_cov:
+        relog.warning("Not yet implemented")
+        exit(0)
+
     # generate an html report
     if args.report:
         # define working directory
-        os.environ["WORK_DIR"] = os.path.join(CURRENT_DIR, "./.tmp_report/")
+        os.environ["WORK_DIR"] = os.path.join(
+            CURRENT_DIR, utils.get_tmp_folder_name("report", "./")
+        )
         os.makedirs(os.environ["WORK_DIR"], exist_ok=True)
         # read all stats
         db = {"blocks": []}
@@ -322,23 +336,3 @@ if __name__ == "__main__":
         )
         with open(os.path.join(utils.get_tmp_folder(), "report.html"), "w+") as fp:
             fp.write(t.render(**db))
-    # code coverage
-    if args.cov:
-        # define working directory
-        os.environ["WORK_DIR"] = os.path.join(CURRENT_DIR, "./.tmp_cov/")
-        # run simulation
-        relog.step("Listing files")
-        files, params = read_sources.read_from(CURRENT_DIR)
-        # determine the simulation type
-        IS_DIG_SIM = all((utils.files.is_digital(file) for file, _ in files))
-        # load the simulator script
-        if IS_DIG_SIM:
-            tool_name = config["DIG_COVERAGE_TOOL"]
-        else:
-            relog.error("Not yet implementd mixed signal or analog simulations")
-            exit(0)
-        # execute simulation
-        utils.tools.launch_tool(tool_name, "cov", NO_CALLBACKS, files, params)
-    # view coverage
-    if args.view_cov:
-        relog.warning("Not yet implemented")
