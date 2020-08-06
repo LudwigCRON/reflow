@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import sys
+import subprocess
 from itertools import chain
 
 sys.path.append(os.environ["REFLOW"])
@@ -8,7 +9,7 @@ sys.path.append(os.environ["REFLOW"])
 import common.utils as utils
 import common.relog as relog
 import common.executor as executor
-
+from common.read_config import Config
 from common.read_sources import resolve_includes
 from common.utils.files import get_type, is_digital
 
@@ -20,6 +21,7 @@ EXE = os.path.join(DEFAULT_TMPDIR, "run.vvp")
 PARSER_LOG = os.path.join(DEFAULT_TMPDIR, "parser.log")
 SIM_LOG = os.path.join(DEFAULT_TMPDIR, "sim.log")
 WAVE = os.path.join(DEFAULT_TMPDIR, "run.%s" % WAVE_FORMAT)
+TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 def transform_flags(flags: str) -> str:
@@ -44,8 +46,6 @@ def transform_flags(flags: str) -> str:
 
 def prepare(files, PARAMS):
     relog.step("Prepation")
-    # create temporary directory
-    os.makedirs(DEFAULT_TMPDIR, exist_ok=True)
     # create the list of sources
     FILES = [f for f, m in files]
     MIMES = list(set([m for f, m in files]))
@@ -69,26 +69,35 @@ def prepare(files, PARAMS):
                 fp.write("%s\n" % file)
     # estimate appropriate flags
     generation = "2012" if any(["SYS" in m for m in MIMES]) else "2001"
-    flags = (
-        "-gverilog-ams"
-        if any(
-            [
-                "AMS" in m or "-gverilog-ams" in m
-                for m in chain(MIMES, PARAMS.get("SIM_FLAGS", ""))
-            ]
-        )
-        else "-gno-verilog-ams",
-        "-gassertions"
-        if any(
-            [
-                "ASSERT" in m or "-gassert" in m
-                for m in chain(MIMES, PARAMS.get("SIM_FLAGS", ""))
-            ]
-        )
-        else "-gno-assertions",
-        "-gspecify" if any(["-gspec" in p for p in PARAMS.get("SIM_FLAGS", "")]) else "",
-        "-Wtimescale" if any(["-Wtimes" in p for p in PARAMS.get("SIM_FLAGS", "")]) else "",
+    flags = Config.iverilog.get("flags").split()
+    flags.extend(
+        [
+            "-gverilog-ams"
+            if any(
+                [
+                    "AMS" in m or "-gverilog-ams" in m
+                    for m in chain(MIMES, PARAMS.get("SIM_FLAGS", ""))
+                ]
+            )
+            else "-gno-verilog-ams",
+            "-gassertions"
+            if any(
+                [
+                    "ASSERT" in m or "-gassert" in m
+                    for m in chain(MIMES, PARAMS.get("SIM_FLAGS", ""))
+                ]
+            )
+            else "-gno-assertions",
+            "-gspecify"
+            if any(["-gspec" in p for p in PARAMS.get("SIM_FLAGS", "")])
+            else "",
+            "-Wtimescale"
+            if any(["-Wtimes" in p for p in PARAMS.get("SIM_FLAGS", "")])
+            else "",
+        ]
     )
+    flags = list(set(flags))
+    # declare needed external VPI modules
     VVP_FLAGS = []
     if "SIM_FLAGS" in PARAMS:
         for flag in PARAMS["SIM_FLAGS"]:
@@ -102,18 +111,9 @@ def compile(generation, flags):
     # create the executable sim
     relog.step("Compiling files")
     # remove inherited timescale flags
-    WARNING_FLAGS = (
-        "-Wanachronisms "
-        "-Wimplicit "
-        "-Wimplicit-dimensions "
-        "-Wportbind "
-        "-Wselect-range "
-        "-Wsensitivity-entire-array "
-    )
     try:
         executor.sh_exec(
-            "iverilog -g%s -grelative-include %s %s -o %s -c %s"
-            % (generation, flags, WARNING_FLAGS, EXE, SRCS),
+            "iverilog -g%s %s -o %s -c %s" % (generation, flags, EXE, SRCS),
             PARSER_LOG,
             MAX_TIMEOUT=20,
             SHOW_CMD=True,
@@ -125,43 +125,52 @@ def compile(generation, flags):
         pass
 
 
-def run(lint: bool = False, PARAMS: dict = {}):
-    # linting files
-    if lint:
-        relog.step("Linting files")
-        relog.display_log(PARSER_LOG)
-        return relog.get_stats(SIM_LOG)
-    # run the simulation
-    else:
-        relog.step("Running simulation")
-        VVP_FLAGS = []
-        if "SIM_FLAGS" in PARAMS:
-            for flag in PARAMS["SIM_FLAGS"]:
-                tf = transform_flags(flag)
-                if tf and tf[:2] in ("-m", "-M"):
-                    VVP_FLAGS.append(tf)
-        VVP_FLAGS = " ".join(VVP_FLAGS)
-        executor.sh_exec(
-            "vvp -i %s %s -%s" % (EXE, VVP_FLAGS, WAVE_FORMAT),
-            SIM_LOG,
-            MAX_TIMEOUT=300,
-            SHOW_CMD=True,
-        )
-        # move the dumpfile to TMPDIR
-        if os.path.exists(WAVE):
-            os.remove(WAVE)
-        if os.path.exists("./dump.%s" % WAVE_FORMAT):
-            os.rename("./dump.%s" % WAVE_FORMAT, WAVE)
-        return relog.get_stats(SIM_LOG)
-
-
-def main(files, params, lint: bool = False):
+def run_sim(files, params):
+    # update global variables
+    Config.add_configs(os.path.join(TOOLS_DIR, "tools.config"))
+    DEFAULT_TMPDIR = utils.get_tmp_folder("sim")
+    WAVE_FORMAT = Config.iverilog.get("format")
+    WAVE = os.path.join(DEFAULT_TMPDIR, "run.%s" % WAVE_FORMAT)
+    # prepare scripts
     flags = prepare(files, params)
     compile(*flags)
-    stats = run(lint, params)
-    return stats
+    relog.step("Running simulation")
+    VVP_FLAGS = []
+    if "SIM_FLAGS" in params:
+        for flag in params["SIM_FLAGS"]:
+            tf = transform_flags(flag)
+            if tf and tf[:2] in ("-m", "-M"):
+                VVP_FLAGS.append(tf)
+    VVP_FLAGS = " ".join(VVP_FLAGS)
+    executor.sh_exec(
+        "vvp -i %s %s -%s" % (EXE, VVP_FLAGS, WAVE_FORMAT),
+        SIM_LOG,
+        MAX_TIMEOUT=300,
+        SHOW_CMD=True,
+    )
+    # move the dumpfile to TMPDIR
+    if os.path.exists(WAVE):
+        os.remove(WAVE)
+    if os.path.exists("./dump.%s" % WAVE_FORMAT):
+        os.rename("./dump.%s" % WAVE_FORMAT, WAVE)
+    return relog.get_stats(SIM_LOG)
+
+
+def run_lint(files, params):
+    # update global variables
+    Config.add_configs(os.path.join(TOOLS_DIR, "tools.config"))
+    DEFAULT_TMPDIR = utils.get_tmp_folder("lint")
+    # prepare scripts
+    flags = prepare(files, params)
+    compile(*flags)
+    relog.step("Linting files")
+    relog.display_log(PARSER_LOG)
+    return relog.get_stats(SIM_LOG)
 
 
 if __name__ == "__main__":
     files, params = utils.get_sources(relog.filter_stream(sys.stdin), None)
-    main(files, params, "--lint-only" in sys.argv)
+    if "--lint-only" in sys.argv:
+        run_lint(files, params)
+    else:
+        run_sim(files, params)

@@ -133,7 +133,7 @@ if __name__ == "__main__":
 
     # clean tmp files
     if args.clean:
-        for t in ("sim", "cov", "lint", "branch"):
+        for t in ("sim", "cov", "lint", "tree", "synth", "branch"):
             for work_dir in Path(CURRENT_DIR).rglob(utils.get_tmp_folder_name(t, "**/")):
                 shutil.rmtree(work_dir)
 
@@ -181,7 +181,7 @@ if __name__ == "__main__":
             exit(0)
         # launch the linter without callback
         utils.tools.launch_tool(
-            Config.tools.get("DIG_LINTER"), "lint", NO_CALLBACKS, files, params, lint=True
+            Config.tools.get("DIG_LINTER"), "lint", NO_CALLBACKS, files, params
         )
 
     # display hierarchy of the design
@@ -214,7 +214,7 @@ if __name__ == "__main__":
                     "%s.py" % Config.tools.get("ANA_WAVEFORM_PARSER"),
                     os.path.join(REFLOW_DIR, "./analog/tools/parsers/"),
                 )
-                cwd = CURRENT_DIR.replace(".tmp_batch/", "")
+                cwd = CURRENT_DIR.replace(utils.get_tmp_folder_name("batch", "/"), "")
                 waves = raw_parser.load_raw(cwd)
                 for script in scripts:
                     s = utils.tools.import_tool("tmp", script, cwd)
@@ -234,15 +234,20 @@ if __name__ == "__main__":
         # load the simulator script
         if type is SimType.DIGITAL:
             tool_name = Config.tools.get("DIG_WAVEFORM_VIEWER")
-            wave_ext = "vcd"
+            sim = Config.tools.get("DIG_SIMULATOR")
         elif type is SimType.ANALOG:
             tool_name = Config.tools.get("ANA_WAVEFORM_VIEWER")
-            wave_ext = "raw"
+            sim = Config.tools.get("ANA_SIMULATOR")
         else:
             relog.error("Not yet implementd mixed signal simulation")
             exit(0)
+        # get simulator waveform file format
+        sim_path = utils.tools.find_tool(sim)
+        for conf in Path(sim_path).rglob("*.config"):
+            Config.add_configs(conf)
+        wave_format = getattr(Config, sim).get("format")
         # view the waveforms
-        utils.tools.launch_tool(tool_name, "view", NO_CALLBACKS, wave_ext)
+        utils.tools.launch_tool(tool_name, "view", NO_CALLBACKS, wave_format)
 
     # synthesis
     if args.synth:

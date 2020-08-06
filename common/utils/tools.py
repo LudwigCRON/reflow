@@ -12,6 +12,7 @@ from importlib import import_module
 from importlib.util import spec_from_file_location, module_from_spec
 
 from common.utils.run import get_tmp_folder
+from common.read_config import Config
 
 
 def find_tool(name: str):
@@ -29,26 +30,30 @@ def import_tool(module_name, file, location):
 
 
 def launch_tool(
-    tool_name: str, stats_name: str, callbacks: tuple = (None, None), *args, **kwargs
+    tool_name: str, action: str, callbacks: tuple = (None, None), *args, **kwargs
 ):
     # find the tool
     tool_path = find_tool(tool_name)
     sys.path.append(os.path.dirname(tool_path))
-    # load it
+    # load it and its config
     tool = import_module(tool_name)
+    for conf in Path(tool_path).rglob("*.config"):
+        Config.add_configs(conf)
+    # check actions are defined
+    task = Config.actions.get(action) if "actions" in Config.data.sections() else "main"
     # execute it and time it
     t_start = time.time() * 1000.0
     pre, post = callbacks
     warnings_errors = []
     if pre:
         warnings_errors.append(pre(*args, **kwargs))
-    warnings_errors.append(tool.main(*args, **kwargs))
+    warnings_errors.append(getattr(tool, task)(*args, **kwargs))
     if post:
         warnings_errors.append(post(*args, **kwargs))
     t_end = time.time() * 1000.0
     # store statistics
     warnings, errors = numpy.nansum(warnings_errors, axis=0)
-    with open(os.path.join(get_tmp_folder(), "./%s.stats" % stats_name), "w+") as fp:
+    with open(os.path.join(get_tmp_folder(), "./%s.stats" % action), "w+") as fp:
         fp.write("%s\n" % datetime.datetime.now())
         fp.write("Warnings: %d\n" % warnings)
         fp.write("Errors: %d\n" % errors)

@@ -2,9 +2,11 @@
 # coding: utf-8
 
 import os
+import sys
 import configparser
+import common.relog as relog
 
-from pathlib import Path
+from pathlib import Path, PosixPath
 
 
 def locate_config_files(base_path: str) -> list:
@@ -50,25 +52,46 @@ class MetaConfig(type):
             section, property = path.split(".", 2)
             os.environ[env_name] = MetaConfig.data[section].get(property)
 
+    # create a default section called reflow
+    @staticmethod
+    def lines_generator(filepath, add_section: bool = False):
+        if add_section:
+            yield "[reflow]\n"
+        with open(filepath, "r+") as fp:
+            for line in fp:
+                yield line
+
     @staticmethod
     def read_configs(config_files: list):
-        if isinstance(config_files, str):
+        if isinstance(config_files, (str, PosixPath)):
             config_files = [config_files]
-
-        # create a default section called reflow
-        def lines_generator(filepath, add_section: bool = False):
-            yield "[reflow]\n"
-            with open(filepath, "r+") as fp:
-                for line in fp:
-                    yield line
 
         # use strict=False to allows redefinition with merge config files
         MetaConfig.data = configparser.SafeConfigParser(strict=False)
         for config_file in config_files:
             try:
-                MetaConfig.data.readfp(lines_generator(config_file), config_file)
+                MetaConfig.data.readfp(MetaConfig.lines_generator(config_file), config_file)
             except configparser.MissingSectionHeaderError:
-                MetaConfig.data.readfp(lines_generator(config_file, True), config_file)
+                MetaConfig.data.readfp(
+                    MetaConfig.lines_generator(config_file, True), config_file
+                )
+
+    @staticmethod
+    def add_configs(config_files: list):
+        if isinstance(config_files, (str, PosixPath)):
+            config_files = [config_files]
+
+        for config_file in config_files:
+            try:
+                MetaConfig.data.readfp(MetaConfig.lines_generator(config_file), config_file)
+            except configparser.MissingSectionHeaderError:
+                relog.error("Please add a [section] in %s to reduce scope" % config_file)
+                exit(0)
+            except configparser.ParsingError as e:
+                relog.error("Syntax error detected in %s. Check *.ini syntax" % config_file)
+                for error in e.errors:
+                    print("line %d: %s" % error, file=sys.stderr)
+                exit(0)
 
 
 class Config(metaclass=MetaConfig):

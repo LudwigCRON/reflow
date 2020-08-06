@@ -23,11 +23,11 @@ def main(format: str = "vcd"):
     for path in Path(DEFAULT_TMPDIR).rglob("**/*.%s" % format):
         vcd_path = path
         break
-    print(vcd_path)
+    relog.info(vcd_path)
     for path in Path(os.path.dirname(DEFAULT_TMPDIR)).rglob("**/*.gtkw"):
         view = path
         break
-    print(view)
+    relog.info("loading view %s" % view)
     # define what to open
     file_to_read = view if view else vcd_path
     relog.step("Open waveforms")
