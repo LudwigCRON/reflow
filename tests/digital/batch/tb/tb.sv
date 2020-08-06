@@ -19,7 +19,7 @@ end
 initial begin
   #(PERIOD*100);
   clk_period = $realtime/100;
-  `log_NoteF("Clock period is %0.3f ns", clk_period);
+  `log_NoteF1("Clock period is %0.3f ns", clk_period);
   `log_Terminate;
 end
 

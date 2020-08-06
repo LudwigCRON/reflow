@@ -2,4 +2,4 @@ tb.sv
 /design/adder
 
 COV_MODULES=rca cla
-SIM_FLAGS=-gspecify -PARAM tb.TCLK=25
+SIM_FLAGS=-gspecify -PARAM+tb.TCLK=25

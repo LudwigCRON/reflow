@@ -237,16 +237,18 @@ def read_sources(filepath: str, graph: dict = {}, depth: int = 0):
             parameter_value = []
             op_increment = False
             wait_new_line = False
+            beginning_of_line = True
             continue_append = False
             last_is_tag = False
             node_stack = []
             for type, token in tokens:
                 # indentation management
-                if type == TokenType.INDENT:
+                if type == TokenType.INDENT and beginning_of_line:
                     indent_level += 1
                     continue_append = False
                 # string or parameter value with '=' or '+='
                 elif type == TokenType.STRING:
+                    beginning_of_line = False
                     if parameter_name is not None:
                         if op_increment or continue_append:
                             parameter_value.append(token)
@@ -268,11 +270,14 @@ def read_sources(filepath: str, graph: dict = {}, depth: int = 0):
                     node_stack.append(Node(path))
                     last_is_tag = True
                     continue_append = False
+                    beginning_of_line = False
                 # received ':' so the file as dependences
                 elif type == TokenType.SEP:
-                    node_stack.append(Node(path))
-                    in_group = indent_level + 1
-                    continue_append = False
+                    if parameter_name is None:
+                        node_stack.append(Node(path))
+                        in_group = indent_level + 1
+                        continue_append = False
+                        beginning_of_line = False
                 # received '=' or '+=' so previous string is a parameter name
                 elif type == TokenType.PARAM_SEP:
                     if not wait_new_line:
@@ -288,6 +293,8 @@ def read_sources(filepath: str, graph: dict = {}, depth: int = 0):
                     else:
                         parameter_value.append("=")
                         continue_append = True
+                    node_stack = []
+                    beginning_of_line = False
                 elif type == TokenType.NEW_LINE:
                     if parameter_name:
                         _val = no.params[parameter_name.strip()]
@@ -319,7 +326,7 @@ def read_sources(filepath: str, graph: dict = {}, depth: int = 0):
                             no.addEdge(graph[path])
                     # stop dependencies check from ':'
                     # if empty line detected or wrong indentation
-                    if (parameter_name is None) or (indent_level < in_group):
+                    if indent_level < in_group:
                         while node_stack:
                             no.addEdge(node_stack.pop())
                         in_group = indent_level
@@ -330,6 +337,7 @@ def read_sources(filepath: str, graph: dict = {}, depth: int = 0):
                     op_increment = False
                     wait_new_line = False
                     continue_append = False
+                    beginning_of_line = True
                     last_is_tag = False
         # if in recursion
         if depth > 0:

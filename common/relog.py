@@ -104,9 +104,9 @@ def get_stats(path: str):
     with open(path, "r+") as fp:
         k = 0
         for k, l in enumerate(fp.readlines()):
-            if "Warning" in l:
+            if "WARNING" in l:
                 Warnings += 1
-            elif "Error" in l:
+            elif "ERROR" in l:
                 Errors += 1
     return Warnings, Errors
 

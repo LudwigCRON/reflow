@@ -1,11 +1,11 @@
 do sim on adder as 32meg:
-    SIM_FLAGS = -gspecify -PARAM tb.TCLK=31.25
+    SIM_FLAGS = -gspecify -PARAM+tb.TCLK=31.25
 
 do sim on adder as 50meg:
-    SIM_FLAGS = -gspecify -PARAM tb.TCLK=20
+    SIM_FLAGS = -gspecify -PARAM+tb.TCLK=20
 
 do sim on adder as 60meg:
-    SIM_FLAGS = -gspecify -PARAM tb.TCLK=16.667
+    SIM_FLAGS = -gspecify -PARAM+tb.TCLK=16.667
 
 do sim on adder as 100meg:
-    SIM_FLAGS = -gspecify -PARAM tb.TCLK=10
+    SIM_FLAGS = -gspecify -PARAM+tb.TCLK=10

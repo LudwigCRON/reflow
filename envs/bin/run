@@ -49,7 +49,7 @@ def prepare_task(type: str = "sim", use_custom_logger: bool = False):
     files, params = read_sources.read_from(CURRENT_DIR, no_logger=True)
     # determine the type of simulation
     digital_only = all((utils.files.is_digital(file) for file, _ in files))
-    analog_only = all((utils.files.is_digital(file) for file, _ in files))
+    analog_only = all((utils.files.is_analog(file) for file, _ in files))
     if digital_only and not use_custom_logger:
         files.insert(
             0, (os.path.join(REFLOW_DIR, "digital/packages/log.svh"), "SYSTEM_VERILOG"),
@@ -263,7 +263,7 @@ if __name__ == "__main__":
         if type is SimType.DIGITAL:
             tool_name = Config.tools.get("DIG_COVERAGE")
         else:
-            relog.error("Not yet implementd mixed signal or analog simulations")
+            relog.error("cannot coverage mixed signal or analog simulations")
             exit(0)
         # execute simulation
         utils.tools.launch_tool(tool_name, "cov", NO_CALLBACKS, files, params)

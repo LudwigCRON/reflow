@@ -11,7 +11,7 @@ tb>fast_clock:
 # normal clock at only 32 MHz
 tb>n@SIM:
   SIM_FLAGS =-Ptb.PERIOD=31.25 # 32 MHz
-  SIM_FLAGS+=-DEFINE TEST
+  SIM_FLAGS+=-DEFINE+TEST
 
 # very slow clock at 
 tb>s:
@@ -23,7 +23,7 @@ do cov on tb as UFC2:
 # normal clock at only 32 MHz
 do sim on tb as n2:
   SIM_FLAGS =-Ptb.PERIOD=31.25 # 32 MHz
-  SIM_FLAGS+=-DEFINE TEST
+  SIM_FLAGS+=-DEFINE+TEST
 
 # very slow clock at 
 do tb as s2:

@@ -120,11 +120,11 @@ def get_block_name(block: dict):
     <h1>${os.path.basename(os.getcwd())}</h1>
     <h2>${datetime.now().strftime("%A, %d. %B %Y %H:%M")}</h2>
     <p>
-        <em>Errors:</em>${"%d" % sum((b.get("errors") for b in blocks))}
+        <em>Errors:</em>${"%d" % sum((b.get("errors", 0) for b in blocks))}
         <br>
-        <em>Warnings:</em>${"%d" % sum((b.get("warnings") for b in blocks))}
+        <em>Warnings:</em>${"%d" % sum((b.get("warnings", 0) for b in blocks))}
         <br>
-        <em>Elapsed Time:</em>${to_time(sum((b.get("total_time") for b in blocks)))}
+        <em>Elapsed Time:</em>${to_time(sum((b.get("total_time", 0) for b in blocks)))}
     </p>
     <button id="expand_all_btn">Expand All</button>
     <button id="close_all_btn">Close All</button>
