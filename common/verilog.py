@@ -15,7 +15,9 @@ def evaluate(text: str):
     otherwise a text
     """
     # cannot be a verilog number if
-    if any([c in text for c in "*+/()GHIJKLMNOPQRSTUVXYZghijklmnopqrstuvxyz"]):
+    if text is None or any(
+        [c in text for c in "*+/()GHIJKLMNOPQRSTUVXYZghijklmnopqrstuvxyz"]
+    ):
         return text
     # otherwise try to parse it
     PATTERN_NUM = "(?:(?P<size>\d+)?'(?P<base>h|d|b))?(?P<value>[0-9A-Fa-f_]+)"
