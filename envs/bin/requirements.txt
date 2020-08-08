@@ -1,4 +1,5 @@
 mako
 numpy
 scipy
+openpyxl
 matplotlib

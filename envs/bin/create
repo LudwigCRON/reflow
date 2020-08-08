@@ -1,0 +1,220 @@
+#!/usr/bin/env python3
+# coding: utf-8
+
+import io
+import os
+import sys
+import pip
+import argparse
+import importlib
+import subprocess
+
+from pathlib import Path
+
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+def load_install(module: str = "venv"):
+    try:
+        m = importlib.import_module(module)
+    except ImportError:
+        pip.main(["install", "--user", module])
+    finally:
+        m = importlib.import_module(module)
+    return m
+
+
+def update_active(env_dir: str = "./"):
+    env_dir = os.path.normpath(env_dir)
+    env_bin = os.path.join(env_dir, "bin")
+    REFLOW_BIN = os.path.dirname(os.path.abspath(__file__))
+    REFLOW_DIR = os.path.dirname(os.path.dirname(REFLOW_BIN))
+    for activate in Path(env_bin).rglob("activat*"):
+        activate = str(activate)
+        with open(activate, "rt") as fp:
+            lines = fp.readlines()
+        # filter lines to remove already edited ones
+        nullify_next = -4
+        deletes = []
+        for i, line in enumerate(lines):
+            if "rehash" in line:
+                deletes.append(i)
+            elif "# Add base path of ReFlow" in line:
+                deletes.append(i)
+                nullify_next = i
+            elif i >= nullify_next and i <= nullify_next + 3:
+                deletes.append(i)
+        for k in deletes[::-1]:
+            del lines[k]
+        # overwrite files
+        with open(activate, "wt") as fp:
+            if ".csh" in activate:
+                fp.writelines(lines)
+                fp.writelines(
+                    [
+                        "# Add base path of ReFlow\n",
+                        "setenv REFLOW=%s\n" % REFLOW_DIR,
+                        'setenv PATH="%s:${PATH}"\n' % REFLOW_BIN,
+                        "rehash\n",
+                    ]
+                )
+            elif ".fish" in activate:
+                fp.writelines(lines)
+                fp.writelines(
+                    [
+                        "# Add base path of ReFlow\n",
+                        'set -gx REFLOW "%s"\n' % REFLOW_DIR,
+                        'set -gx PATH "%s" $PATH\n' % REFLOW_BIN,
+                        "\n",
+                    ]
+                )
+            elif ".ps1" in activate:
+                fp.writelines(lines)
+                fp.writelines(
+                    [
+                        "# Add base path of ReFlow\n",
+                        '$env:REFLOW = "%s"\n' % REFLOW_DIR,
+                        '$env:PATH = "%s:" + $env:PATH\n' % REFLOW_BIN,
+                        "\n",
+                    ]
+                )
+            elif ".xsh" in activate:
+                fp.writelines(lines)
+                fp.writelines(
+                    [
+                        "# Add base path of ReFlow\n",
+                        '$REFLOW = "%s"\n' % REFLOW_DIR,
+                        "$PATH.add(%s, front=True, replace=True)\n" % REFLOW_BIN,
+                        "\n",
+                    ]
+                )
+            elif "_this.py" in activate:
+                fp.writelines(lines)
+                fp.writelines(
+                    [
+                        "# Add base path of ReFlow\n",
+                        'os.environ["REFLOW"] = "%s"\n' % REFLOW_DIR,
+                        "sys.path.append(%s)\n" % REFLOW_BIN,
+                        "\n",
+                    ]
+                )
+            else:
+                fp.writelines(lines)
+                fp.writelines(
+                    [
+                        "# Add base path of ReFlow\n",
+                        "export REFLOW=%s\n" % REFLOW_DIR,
+                        'export PATH="%s:${PATH}"\n' % REFLOW_BIN,
+                        "\n",
+                    ]
+                )
+
+
+def create_venv(env_dir: str = "./"):
+    env_dir = os.path.normpath(env_dir)
+    env_name = os.path.basename(env_dir)
+    env_bin = os.path.join(env_dir, "bin")
+    print("Load virtualenv")
+    venv = load_install("venv")
+
+    print("Create the environment %s" % env_name)
+    venv.main([env_dir])
+
+    print("Install dependencies")
+    reqs = os.path.join(CURRENT_DIR, "requirements.txt")
+    subprocess.call(
+        "source %s/activate; python -m pip install --upgrade pip; python -m pip install -r %s"
+        % (env_bin, reqs),
+        shell=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+    )
+
+    print("Register Reflow")
+    update_active(env_dir)
+
+
+def create_pyenv(env_dir: str = "./"):
+    env_dir = os.path.normpath(env_dir)
+    env_name = os.path.basename(env_dir)
+    env_bin = os.path.join(env_dir, "bin")
+    print("Checking pyenv")
+    pyenv_root = os.getenv("PYENV_ROOT") or subprocess.getoutput("pyenv root")
+    print(pyenv_root)
+    if not pyenv_root:
+        print(
+            """pyenv not found:
+ - install pyenv
+ - add pyenv to your $PATH
+ - set the root directory of pyenv in ${PYENV_ROOT}
+        """,
+            file=sys.stderr,
+        )
+        return
+
+    print("Create the environment %s" % env_name)
+    subprocess.call("pyenv virtualenv %s" % env_name, shell=True)
+
+    print("Install dependencies")
+    reqs = os.path.join(CURRENT_DIR, "requirements.txt")
+    subprocess.call(
+        'eval "$(pyenv init -)"; eval "$(pyenv virtualenv-init -)"; pyenv activate %s; python -m pip install --upgrade pip; python -m pip install -r %s'
+        % (env_name, reqs),
+        shell=True,
+    )
+
+    print("Register Reflow")
+    env_dir = os.path.join(pyenv_root, "versions", env_name)
+    print(env_dir)
+    update_active(env_dir)
+
+
+def default_config():
+    filepath = os.path.join(os.getcwd(), "project.config")
+    if os.path.exists(filepath):
+        yes_no = ""
+        while yes_no not in ["y", "n", "yes", "no"]:
+            yes_no = input(
+                "do you want to overwrite current project.config ? [y/n] "
+            ).lower()
+        if yes_no in ["n", "no"]:
+            return
+    with open(filepath, "w+") as fp:
+        fp.write(
+            """[reflow]
+WORK_DIR_PREFIX     = tmp
+PLATFORM            = reflow
+
+[tools]
+DIG_SYNTHESIS       = yosys
+DIG_LINTER          = iverilog
+DIG_SIMULATOR       = iverilog
+DIG_COVERAGE        = covered
+DIG_WAVEFORM_VIEWER = gtkwave
+ANA_SIMULATOR       = ltspice
+ANA_WAVEFORM_VIEWER = ltspice_view
+ANA_WAVEFORM_PARSER = ltspice_raw
+
+[technology]
+TECH_LIB            = $(CADTOOLS)/yosys/examples/cmos/cmos_cells.lib
+"""
+        )
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser("create")
+    parser.add_argument("-e", "--env", type=str, help="path and name of the envirnment")
+    parser.add_argument(
+        "--pyenv", action="store_true", help="use pyenv rather than virtualenv"
+    )
+    parser.add_argument(
+        "-c", "--config", action="store_true", help="populate a default project.config"
+    )
+    cli_args = parser.parse_args()
+
+    if cli_args.config:
+        default_config()
+    elif cli_args.pyenv:
+        create_pyenv(cli_args.env)
+    else:
+        create_venv(cli_args.env)
