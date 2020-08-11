@@ -27,7 +27,7 @@ def run(raw: str):
     if sys.platform == "darwin":
         ltspice = "/Applications/LTspice.app/Contents/MacOS/LTspice"
     elif sys.platform == "unix" or "linux" in sys.platform:
-        ltspice = 'wine "%s"' % utils.wine.locate("XVIIx64.exe")
+        ltspice = 'wine64 "%s"' % utils.wine.locate("XVIIx64.exe")
         window_path = io.StringIO()
         executor.sh_exec("winepath -w '%s'" % raw, window_path, NOERR=True, NOOUT=True)
         raw = window_path.getvalue().strip().replace("\\", "/")

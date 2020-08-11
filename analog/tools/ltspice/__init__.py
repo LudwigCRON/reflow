@@ -60,7 +60,7 @@ def run(asc: str):
     if sys.platform == "darwin":
         ltspice = "/Applications/LTspice.app/Contents/MacOS/LTspice"
     elif sys.platform == "unix" or "linux" in sys.platform:
-        ltspice = 'wine "%s"' % utils.wine.locate("XVIIx64.exe")
+        ltspice = 'wine64 "%s"' % utils.wine.locate("XVIIx64.exe")
         # to speed up wine
         # wine reg add 'HKEY_CURRENT_USER\Software\Wine\Direct3D' /v MaxVersionGL /t REG_DWORD /d 0x30003 /f
         # winetricks orm=backbuffer glsl=disable for NVIDIA driver
