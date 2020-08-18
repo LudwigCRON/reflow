@@ -1,7 +1,6 @@
-+libext+.v+.sv+
++libext+.v+.sv+.vh+.svh+
 % if instance:
 -t ${instance[0]}
--i ${top}.${instance[1]}
 % else:
 -t ${top}
 % endif
