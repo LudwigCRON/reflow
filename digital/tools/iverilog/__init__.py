@@ -16,12 +16,12 @@ from common.utils.files import get_type, is_digital
 
 WAVE_FORMAT = "vcd"
 DEFAULT_TMPDIR = utils.get_tmp_folder()
-SRCS = os.path.join(DEFAULT_TMPDIR, "srcs.list")
-EXE = os.path.join(DEFAULT_TMPDIR, "run.vvp")
-PARSER_LOG = os.path.join(DEFAULT_TMPDIR, "parser.log")
-SIM_LOG = os.path.join(DEFAULT_TMPDIR, "sim.log")
-WAVE = os.path.join(DEFAULT_TMPDIR, "run.%s" % WAVE_FORMAT)
-TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
+SRCS = utils.normpath(os.path.join(DEFAULT_TMPDIR, "srcs.list"))
+EXE = utils.normpath(os.path.join(DEFAULT_TMPDIR, "run.vvp"))
+PARSER_LOG = utils.normpath(os.path.join(DEFAULT_TMPDIR, "parser.log"))
+SIM_LOG = utils.normpath(os.path.join(DEFAULT_TMPDIR, "sim.log"))
+WAVE = utils.normpath(os.path.join(DEFAULT_TMPDIR, "run.%s" % WAVE_FORMAT))
+TOOLS_DIR = utils.normpath(os.path.dirname(os.path.abspath(__file__)))
 
 
 def transform_flags(flags: str) -> str:

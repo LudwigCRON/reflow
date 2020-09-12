@@ -6,7 +6,7 @@ import sys
 import configparser
 import common.relog as relog
 
-from pathlib import Path, PosixPath
+from pathlib import Path, PosixPath, WindowsPath
 
 
 def locate_config_files(base_path: str) -> list:
@@ -78,7 +78,7 @@ class MetaConfig(type):
 
     @staticmethod
     def add_configs(config_files: list):
-        if isinstance(config_files, (str, PosixPath)):
+        if isinstance(config_files, (str, PosixPath, WindowsPath)):
             config_files = [config_files]
 
         for config_file in config_files:

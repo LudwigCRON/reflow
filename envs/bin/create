@@ -29,7 +29,7 @@ def update_active(env_dir: str = "./"):
     env_bin = os.path.join(env_dir, "bin")
     REFLOW_BIN = os.path.dirname(os.path.abspath(__file__))
     REFLOW_DIR = os.path.dirname(os.path.dirname(REFLOW_BIN))
-    for activate in Path(env_bin).rglob("activat*"):
+    for activate in Path(env_dir).rglob("[aA]ctivat*"):
         activate = str(activate)
         with open(activate, "rt") as fp:
             lines = fp.readlines()
@@ -69,15 +69,25 @@ def update_active(env_dir: str = "./"):
                     ]
                 )
             elif ".ps1" in activate:
-                fp.writelines(lines)
+                # find the signature if there is
+                idx = max(min([i for i, l in enumerate(lines) if "# SIG #" in l]), 0)
+                fp.writelines(lines[: idx - 1])
                 fp.writelines(
                     [
                         "# Add base path of ReFlow\n",
                         '$env:REFLOW = "%s"\n' % REFLOW_DIR,
                         '$env:PATH = "%s:" + $env:PATH\n' % REFLOW_BIN,
+                        "Function reflow_run($args) {python '%s' $args}\n"
+                        % os.path.join(REFLOW_BIN, "run"),
+                        "Function reflow_create($args) {python '%s' $args}\n"
+                        % os.path.join(REFLOW_BIN, "create"),
+                        "Set-Alias -Name run -Value reflow_run\n",
+                        "Set-Alias -Name create -Value reflow_create\n",
                         "\n",
                     ]
                 )
+                if idx:
+                    fp.writelines(lines[idx - 1 :])
             elif ".xsh" in activate:
                 fp.writelines(lines)
                 fp.writelines(
@@ -122,13 +132,23 @@ def create_venv(env_dir: str = "./"):
 
     print("Install dependencies")
     reqs = os.path.join(CURRENT_DIR, "requirements.txt")
-    subprocess.call(
-        "source %s/activate; python -m pip install --upgrade pip; python -m pip install -r %s"
-        % (env_bin, reqs),
-        shell=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-    )
+    if os.name == "nt":
+        cmds = [
+            'powershell -Command "Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser"',
+            "powershell -Command \"'%s'; python -m pip install --upgrade pip; python -m pip install -r %s\""
+            % (os.path.join(env_dir, "Scripts\\Activate.ps1"), reqs),
+        ]
+        for cmd in cmds:
+            print(cmd)
+            subprocess.call(cmd, shell=True)
+    else:
+        subprocess.call(
+            "source %s/activate; python -m pip install --upgrade pip; python -m pip install -r %s"
+            % (env_bin, reqs),
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        )
 
     print("Register Reflow")
     update_active(env_dir)

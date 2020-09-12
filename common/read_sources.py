@@ -49,7 +49,10 @@ def resolve_path(path: str, base: str = "") -> str:
         if os.path.exists(new_path):
             return new_path
     # in platform without domain separation
-    new_path = os.path.join(base[: i + len(platform)], path[1:],)
+    new_path = os.path.join(
+        base[: i + len(platform)],
+        path[1:],
+    )
     if os.path.exists(new_path):
         return new_path
     # not known
@@ -434,6 +437,8 @@ def read_from(sources_list: str, no_logger: bool = False, no_stdout: bool = True
         print("TOP_MODULE\t:\t'%s'" % graph[-1].name)
         parameters["TOP_MODULE"] = graph[-1].name
     if no_stdout:
+        # normalize path of files accross platform
+        files = [(f.replace("\\", "/"), m) for f, m in files]
         return files, parameters
 
 

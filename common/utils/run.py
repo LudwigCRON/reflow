@@ -45,6 +45,10 @@ def get_sources(src, out: str = None, prefix: str = "") -> tuple:
     return files, params
 
 
+def normpath(s: str):
+    return os.path.normpath(s).replace("\\", "/")
+
+
 # ==== get working directory ====
 def get_tmp_folder(type: str = "sim") -> str:
     """
@@ -53,12 +57,12 @@ def get_tmp_folder(type: str = "sim") -> str:
     directory via WORK_DIR env. variable
     """
     if "WORK_DIR" in os.environ:
-        return os.path.normpath(os.environ["WORK_DIR"])
+        return normpath(os.environ["WORK_DIR"])
     if "WORK_DIR_PREFIX" in os.environ:
-        return os.path.normpath(
+        return normpath(
             os.path.join(os.getcwd(), ".%s_%s" % (os.environ["WORK_DIR_PREFIX"], type))
         )
-    return os.path.normpath(os.path.join(os.getcwd(), ".tmp_%s" % type))
+    return normpath(os.path.join(os.getcwd(), ".tmp_%s" % type))
 
 
 def get_tmp_folder_name(type: str = "sim", prefix: str = "") -> str:

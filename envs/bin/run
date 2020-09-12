@@ -40,8 +40,8 @@ class SimType(Enum):
 
 def prepare_task(type: str = "sim", use_custom_logger: bool = False):
     # define working directory
-    os.environ["WORK_DIR"] = os.path.join(
-        CURRENT_DIR, utils.get_tmp_folder_name(type, "./")
+    os.environ["WORK_DIR"] = utils.normpath(
+        os.path.join(CURRENT_DIR, utils.get_tmp_folder_name(type, "./"))
     )
     os.makedirs(os.environ["WORK_DIR"], exist_ok=True)
     # run simulation
@@ -52,7 +52,11 @@ def prepare_task(type: str = "sim", use_custom_logger: bool = False):
     analog_only = all((utils.files.is_analog(file) for file, _ in files))
     if digital_only and not use_custom_logger:
         files.insert(
-            0, (os.path.join(REFLOW_DIR, "digital/packages/log.svh"), "SYSTEM_VERILOG"),
+            0,
+            (
+                utils.normpath(os.path.join(REFLOW_DIR, "digital/packages/log.svh")),
+                "SYSTEM_VERILOG",
+            ),
         )
     sim_type = (
         SimType.DIGITAL
@@ -116,13 +120,14 @@ if __name__ == "__main__":
         if key not in ["clean", "batch"]:
             group.add_argument("--%s" % key, help=desc, action="store_true", default=False)
     args = parser.parse_args(arguments)
+    print(args, sys.argv)
     # if not arguments is provided print help
     if not any(dict(args._get_kwargs()).values()):
         parser.print_help()
         exit(0)
 
     # the default configuration
-    default_config = os.path.normpath(os.path.join(REFLOW_DIR, "./default.config"))
+    default_config = utils.normpath(os.path.join(REFLOW_DIR, "./default.config"))
     # load a local configuration if there is one
     config_files = [default_config] + locate_config_files(CURRENT_DIR)
     if len(config_files) == 1:
@@ -141,7 +146,7 @@ if __name__ == "__main__":
     if args.batch:
         # define working directory
         batch_path = utils.get_tmp_folder_name("batch", "./")
-        os.environ["WORK_DIR"] = os.path.join(CURRENT_DIR, batch_path)
+        os.environ["WORK_DIR"] = utils.normpath(os.path.join(CURRENT_DIR, batch_path))
         # run simulations
         t_start = time.time() * 1000.0
         read_batch.main(CURRENT_DIR, args.sim, args.cov, args.lint)
@@ -167,7 +172,9 @@ if __name__ == "__main__":
                 except ValueError:
                     relog.error("%s values should be number" % stats_path)
         # store statistics
-        with open(os.path.join(utils.get_tmp_folder(), "./batch.stats"), "w+") as fp:
+        with open(
+            utils.normpath(os.path.join(utils.get_tmp_folder(), "./batch.stats")), "w+"
+        ) as fp:
             fp.write("%s\n" % datetime.now())
             fp.write("Warnings: %d\n" % db_batch["Warnings"])
             fp.write("Errors: %d\n" % db_batch["Errors"])
@@ -212,7 +219,7 @@ if __name__ == "__main__":
                 raw_parser = utils.tools.import_tool(
                     "raw_parser",
                     "%s.py" % Config.tools.get("ANA_WAVEFORM_PARSER"),
-                    os.path.join(REFLOW_DIR, "./analog/tools/parsers/"),
+                    utils.normpath(os.path.join(REFLOW_DIR, "./analog/tools/parsers/")),
                 )
                 cwd = CURRENT_DIR.replace(utils.get_tmp_folder_name("batch", "/"), "")
                 waves = raw_parser.load_raw(cwd)
@@ -248,7 +255,7 @@ if __name__ == "__main__":
         wave_format = getattr(Config, sim).get("format")
         # view the waveforms
         utils.tools.launch_tool(tool_name, "view", NO_CALLBACKS, wave_format)
-        os.remove(os.path.join(utils.get_tmp_folder(), "./view.stats"))
+        os.remove(utils.normpath(os.path.join(utils.get_tmp_folder(), "./view.stats")))
 
     # synthesis
     if args.synth:
@@ -277,8 +284,8 @@ if __name__ == "__main__":
     # generate an html report
     if args.report:
         # define working directory
-        os.environ["WORK_DIR"] = os.path.join(
-            CURRENT_DIR, utils.get_tmp_folder_name("report", "./")
+        os.environ["WORK_DIR"] = utils.normpath(
+            os.path.join(CURRENT_DIR, utils.get_tmp_folder_name("report", "./"))
         )
         os.makedirs(os.environ["WORK_DIR"], exist_ok=True)
         # read all stats
@@ -338,7 +345,11 @@ if __name__ == "__main__":
         db["blocks"].append(db_batch)
         # read the html template
         t = Template(
-            filename=os.path.join(REFLOW_DIR, "./common/templates/report.html.mako")
+            filename=utils.normpath(
+                os.path.join(REFLOW_DIR, "./common/templates/report.html.mako")
+            )
         )
-        with open(os.path.join(utils.get_tmp_folder(), "report.html"), "w+") as fp:
+        with open(
+            utils.normpath(os.path.join(utils.get_tmp_folder(), "report.html")), "w+"
+        ) as fp:
             fp.write(t.render(**db))
