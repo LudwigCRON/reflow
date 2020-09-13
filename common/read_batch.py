@@ -236,21 +236,37 @@ def run(
             if not sim_only and not cov_only and not lint_only:
                 sim_only, cov_only, lint_only = True, True, True
             # run the simulations
+            run_path = utils.normpath(os.getenv("REFLOW") + "/envs/bin/run")
             if os.path.exists(b):
                 for batch_option in batch_options:
                     if batch_option:
                         executor.sh_exec(
-                            "run batch %s" % batch_option,
+                            "python3 '%s' batch %s" % (run_path, batch_option),
                             CWD=p,
                             ENV=os.environ.copy(),
                         )
             else:
                 if sim_only and s in [SimType.SIMULATION, SimType.ALL]:
-                    executor.sh_exec("run sim", CWD=o, ENV=os.environ.copy())
+                    executor.sh_exec(
+                        "python3 '%s' sim" % run_path,
+                        CWD=o,
+                        ENV=os.environ.copy(),
+                        SHELL=True,
+                    )
                 if cov_only and s in [SimType.COVERAGE, SimType.ALL]:
-                    executor.sh_exec("run cov", CWD=o, ENV=os.environ.copy())
+                    executor.sh_exec(
+                        "python3 '%s' cov" % run_path,
+                        CWD=o,
+                        ENV=os.environ.copy(),
+                        SHELL=True,
+                    )
                 if lint_only and s in [SimType.LINT, SimType.ALL]:
-                    executor.sh_exec("run lint", CWD=o, ENV=os.environ.copy())
+                    executor.sh_exec(
+                        "python3 '%s' lint" % run_path,
+                        CWD=o,
+                        ENV=os.environ.copy(),
+                        SHELL=True,
+                    )
 
 
 def main(cwd, sim_only: bool = False, cov_only: bool = False, lint_only: bool = False):

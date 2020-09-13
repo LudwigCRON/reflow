@@ -5,8 +5,7 @@ import os
 import sys
 import shlex
 import subprocess
-
-# import traceback
+import traceback
 import common.relog as relog
 
 
@@ -30,14 +29,14 @@ def sh_exec(
     try:
         if CWD is None and ENV is None:
             proc = subprocess.Popen(
-                cmd if SHELL else tokens,
+                tokens,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE if NOERR else subprocess.STDOUT,
                 shell=SHELL,
             )
         elif ENV is None:
             proc = subprocess.Popen(
-                cmd if SHELL else tokens,
+                tokens,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE if NOERR else subprocess.STDOUT,
                 shell=SHELL,
@@ -45,7 +44,7 @@ def sh_exec(
             )
         else:
             proc = subprocess.Popen(
-                cmd if SHELL else tokens,
+                tokens,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE if NOERR else subprocess.STDOUT,
                 shell=SHELL,
@@ -76,7 +75,7 @@ def sh_exec(
         if return_code:
             raise subprocess.CalledProcessError(return_code, cmd)
     except (OSError, subprocess.CalledProcessError) as e:
-        # traceback.print_exc()
+        traceback.print_exc()
         return False
     except subprocess.TimeoutExpired:
         relog.error("Unexpected executer timeout")
