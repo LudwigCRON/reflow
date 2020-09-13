@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 # coding: utf-8
 
+import os
 import sys
 import shlex
 import subprocess
+
+# import traceback
 import common.relog as relog
 
 
@@ -23,17 +26,18 @@ def sh_exec(
     simplify code for executing shell command
     """
     tokens = shlex.split(cmd)
+    encoding = "iso-8859-1" if "nt" in os.name else "utf-8"
     try:
         if CWD is None and ENV is None:
             proc = subprocess.Popen(
-                tokens,
+                cmd if SHELL else tokens,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE if NOERR else subprocess.STDOUT,
                 shell=SHELL,
             )
         elif ENV is None:
             proc = subprocess.Popen(
-                tokens,
+                cmd if SHELL else tokens,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE if NOERR else subprocess.STDOUT,
                 shell=SHELL,
@@ -41,7 +45,7 @@ def sh_exec(
             )
         else:
             proc = subprocess.Popen(
-                tokens,
+                cmd if SHELL else tokens,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE if NOERR else subprocess.STDOUT,
                 shell=SHELL,
@@ -57,7 +61,7 @@ def sh_exec(
                 fp.write("%s\n" % cmd)
             for line in proc.stdout:
                 if not NOOUT:
-                    sys.stdout.write(format_line(line.decode("utf-8")))
+                    sys.stdout.write(format_line(line.decode(encoding)))
                 # remove color code of log.vh amond other things
                 content = list(relog.filter_stream(line))
                 if content:
@@ -66,12 +70,13 @@ def sh_exec(
                 fp.close()
         elif not NOOUT:
             for line in proc.stdout:
-                sys.stdout.write(format_line(line.decode("utf-8")))
+                sys.stdout.write(format_line(line.decode(encoding)))
         proc.stdout.close()
         return_code = proc.wait()
         if return_code:
             raise subprocess.CalledProcessError(return_code, cmd)
-    except (OSError, subprocess.CalledProcessError):
+    except (OSError, subprocess.CalledProcessError) as e:
+        # traceback.print_exc()
         return False
     except subprocess.TimeoutExpired:
         relog.error("Unexpected executer timeout")

@@ -170,7 +170,7 @@ def read_batch(batch_file: str):
         raise Exception("%s does not exist" % batch_file)
     # get batch description file path
     if os.path.isdir(batch_file):
-        filepath = os.path.join(batch_file, "Batch.list")
+        filepath = utils.normpath(os.path.join(batch_file, "Batch.list"))
     else:
         filepath = batch_file
     # parse the batch file
@@ -202,18 +202,18 @@ def run(
     for k, rule in enumerate(batch):
         if batch.has_option(rule, "__path__"):
             relog.info(f"[{k}/{N}] Run simulation {rule}")
-            p = os.path.join(cwd, batch.get(rule, "__path__"))
+            p = utils.normpath(os.path.join(cwd, batch.get(rule, "__path__")))
             s = eval(batch.get(rule, "__sim_type__"))
-            o = os.path.join(TMP_DIR, rule)
-            l = os.path.join(o, "Sources.list")
-            b = os.path.join(p, "Batch.list")
+            o = utils.normpath(os.path.join(TMP_DIR, rule))
+            l = utils.normpath(os.path.join(o, "Sources.list"))
+            b = utils.normpath(os.path.join(p, "Batch.list"))
             os.makedirs(o, exist_ok=True)
             if not os.path.exists(b):
                 # create the Sources.list
                 with open(l, "w+") as fp:
                     path = batch.get(rule, "__path__")
                     dedent = "".join(["../"] * (2 + path.count("/")))
-                    fp.write("%s\n" % os.path.join(dedent, path))
+                    fp.write("%s\n" % utils.normpath(os.path.join(dedent, path)))
                     for option in batch.options(rule):
                         if not option.startswith("__"):
                             values = batch.get(rule, option, raw=True)
@@ -240,7 +240,9 @@ def run(
                 for batch_option in batch_options:
                     if batch_option:
                         executor.sh_exec(
-                            "run batch %s" % batch_option, CWD=p, ENV=os.environ.copy(),
+                            "run batch %s" % batch_option,
+                            CWD=p,
+                            ENV=os.environ.copy(),
                         )
             else:
                 if sim_only and s in [SimType.SIMULATION, SimType.ALL]:

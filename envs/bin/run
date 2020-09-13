@@ -120,7 +120,6 @@ if __name__ == "__main__":
         if key not in ["clean", "batch"]:
             group.add_argument("--%s" % key, help=desc, action="store_true", default=False)
     args = parser.parse_args(arguments)
-    print(args, sys.argv)
     # if not arguments is provided print help
     if not any(dict(args._get_kwargs()).values()):
         parser.print_help()
@@ -176,8 +175,8 @@ if __name__ == "__main__":
             utils.normpath(os.path.join(utils.get_tmp_folder(), "./batch.stats")), "w+"
         ) as fp:
             fp.write("%s\n" % datetime.now())
-            fp.write("Warnings: %d\n" % db_batch["Warnings"])
-            fp.write("Errors: %d\n" % db_batch["Errors"])
+            fp.write("Warnings: %d\n" % db_batch.get("Warnings", -1))
+            fp.write("Errors: %d\n" % db_batch.get("Errors", -1))
             fp.write("Sim. Time: %d\n" % (t_end - t_start))
 
     # check lint error on the design
