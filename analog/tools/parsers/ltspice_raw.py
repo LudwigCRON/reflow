@@ -13,6 +13,7 @@ from pathlib import Path
 
 sys.path.append(os.environ["REFLOW"])
 
+import common.utils as utils
 import common.relog as relog
 
 
@@ -46,11 +47,13 @@ def load_raw(filename):
         Returns
             dict with structure described above.
     """
+    filename = utils.normpath(filename)
     if not filename.endswith(".raw"):
         for raw in Path(filename).rglob("**/*.raw"):
             if not ".op.raw" in str(raw):
                 filename = str(raw)
                 break
+    filename = utils.normpath(filename)
     print(filename)
     ret, header = {}, []
     mode, data, time = None, None, None

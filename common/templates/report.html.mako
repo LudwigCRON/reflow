@@ -187,7 +187,7 @@ def get_block_name(block: dict):
                     <td>${lint.get("name")}</td>
                     <td>${"%d" % lint.get("warnings")}</td>
                     <td>${"%d" % lint.get("errors")}</td>
-                    <td>${lint.get("total_time")}</td>
+                    <td>${to_time(lint.get("total_time"))}</td>
                 </tr>
                 % endfor
             </tbody>

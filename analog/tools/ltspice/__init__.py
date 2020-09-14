@@ -67,11 +67,13 @@ def run(asc: str):
         # do not allow the WM to decorate window
         window_path = io.StringIO()
         executor.sh_exec("winepath -w '%s'" % asc, window_path, NOERR=True, NOOUT=True)
-        asc = window_path.getvalue().strip().replace("\\", "/")
+        asc = utils.normpath(window_path.getvalue().strip())
     else:
         ltspice = "XVIIx64.exe"
     # start the simulation
-    gen = executor.ish_exec('%s -Run "%s"' % (ltspice, asc), SIM_LOG, MAX_TIMEOUT=300, NOERR=True)
+    gen = executor.ish_exec(
+        '%s -Run "%s"' % (ltspice, asc), SIM_LOG, MAX_TIMEOUT=300, NOERR=True
+    )
     proc = next(gen)
     # watch the log file to determine when
     # the simulation ends

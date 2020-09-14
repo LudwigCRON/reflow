@@ -76,7 +76,7 @@ def update_active(env_dir: str = "./"):
                     [
                         "# Add base path of ReFlow\n",
                         '$env:REFLOW = "%s"\n' % REFLOW_DIR,
-                        '$env:PATH = "%s:" + $env:PATH\n' % REFLOW_BIN,
+                        '$env:PATH = "%s;" + $env:PATH\n' % REFLOW_BIN,
                         "Function reflow_run {python '%s' @args}\n"
                         % os.path.join(REFLOW_BIN, "run"),
                         "Function reflow_create {python '%s' @args}\n"
