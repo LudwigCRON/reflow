@@ -70,7 +70,8 @@ def update_active(env_dir: str = "./"):
                 )
             elif ".ps1" in activate:
                 # find the signature if there is
-                idx = max(min([i for i, l in enumerate(lines) if "# SIG #" in l]), 0)
+                potential_sign = [i for i, l in enumerate(lines) if "# SIG #" in l]
+                idx = max(min(potential_sign), 0) if potential_sign else 0
                 fp.writelines(lines[: idx - 1])
                 fp.writelines(
                     [
