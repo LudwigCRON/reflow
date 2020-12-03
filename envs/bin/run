@@ -109,6 +109,9 @@ if __name__ == "__main__":
         "-c", "--clean", help="clean working directory", action="store_true", default=False
     )
     parser.add_argument(
+        "-l", "--custom_log", help="use custom `log_*", action="store_true", default=False
+    )
+    parser.add_argument(
         "-b",
         "--batch",
         help="perform a list of simulations Batch.list",
@@ -198,7 +201,7 @@ if __name__ == "__main__":
 
     # run a simulation
     if args.sim:
-        type, files, params = prepare_task(type="sim")
+        type, files, params = prepare_task(type="sim", use_custom_logger=args.custom_log)
         # load the simulator script
         if type is SimType.DIGITAL:
             tool_name = Config.tools.get("DIG_SIMULATOR")

@@ -167,6 +167,8 @@ def source_tokenizer(buffer):
         start_index = 0
         is_blank_from_zero, previous, current = True, "", ""
         ln = line.expandtabs(4)
+        idx_comment = ln.find("#")
+        ln = ln[:idx_comment] if idx_comment > -1 else ln
         for pos, current in enumerate(ln):
             # check for indentation
             if current == " " and previous in ["", " "] and start_index == 0:
