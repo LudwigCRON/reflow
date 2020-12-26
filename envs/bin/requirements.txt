@@ -1,4 +1,5 @@
 mako
+doit
 numpy
 scipy
 openpyxl

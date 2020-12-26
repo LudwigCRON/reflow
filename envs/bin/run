@@ -3,17 +3,10 @@
 
 import os
 import sys
-import time
-import numpy
-import signal
-import shutil
-import argparse
+import doit
 
 from enum import Enum
 from pathlib import Path
-from datetime import datetime
-
-from mako.template import Template
 
 # assume the run utility is placed in the envs/bin/ directory
 ENVBIN_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -25,27 +18,31 @@ sys.path.append(REFLOW_DIR)
 sys.path.append(CURRENT_DIR)
 
 import common.utils as utils
+import common.utils.doit as doit_helper
+
 import common.relog as relog
 import common.design_tree as design_tree
-import common.read_batch as read_batch
 import common.read_sources as read_sources
+
 from common.read_config import Config, locate_config_files
 
 
 class SimType(Enum):
-    DIGITAL = 0
-    ANALOG = 1
-    MIXED = 2
+    DIGITAL = "dig"
+    ANALOG = "ana"
+    MIXED = "mix"
 
 
-def prepare_task(type: str = "sim", use_custom_logger: bool = False):
+def create_working_dir(suffix: str):
     # define working directory
     os.environ["WORK_DIR"] = utils.normpath(
-        os.path.join(CURRENT_DIR, utils.get_tmp_folder_name(type, "./"))
+        os.path.join(CURRENT_DIR, utils.get_tmp_folder_name(suffix, "./"))
     )
     os.makedirs(os.environ["WORK_DIR"], exist_ok=True)
-    # run simulation
-    relog.step("Listing files")
+
+
+def get_context(use_custom_logger: bool = False):
+    # list files and mime types
     files, params = read_sources.read_from(CURRENT_DIR, no_logger=True)
     # determine the type of simulation
     digital_only = all((utils.files.is_digital(file) for file, _ in files))
@@ -68,66 +65,9 @@ def prepare_task(type: str = "sim", use_custom_logger: bool = False):
     return (sim_type, files, params)
 
 
-NO_CALLBACKS = (None, None)
-
-if __name__ == "__main__":
-    # signal handling (kill, ctrl+c, ...)
-    make_process = None
-
-    def stop_process():
-        if make_process is not None:
-            make_process.kill()
-
-    signal.signal(signal.SIGINT, stop_process)
-    # parse command line arguments
-    margs = {
-        "clean": "clean working directory",
-        "batch": "perform a list of simulations Batch.list",
-        "sim": "run a simulation",
-        "cov": "run a coverage simulation",
-        "lint": "apply lint checks on a design",
-        "tree": "display the design tree",
-        "view-sim": "display waveforms",
-        "view-cov": "display coverage results",
-        "synth": "synthesize a design",
-        "report": "generate an html report of executed simulations and their stats",
-    }
-    arguments = ["--%s" % arg if arg in margs.keys() else arg for arg in sys.argv[1:]]
-    parser = argparse.ArgumentParser(
-        description=(
-            "Reflow Unified ruNner\n"
-            "---------------------\n"
-            "\n"
-            "For arguments starting with by double dash --,"
-            "the double dashes can be omitted."
-            "\n"
-            "ex: 'run sim' is equal to 'run --sim'\n"
-        ),
-        formatter_class=argparse.RawTextHelpFormatter,
-    )
-    parser.add_argument(
-        "-c", "--clean", help="clean working directory", action="store_true", default=False
-    )
-    parser.add_argument(
-        "-l", "--custom_log", help="use custom `log_*", action="store_true", default=False
-    )
-    parser.add_argument(
-        "-b",
-        "--batch",
-        help="perform a list of simulations Batch.list",
-        action="store_true",
-        default=False,
-    )
-    group = parser.add_mutually_exclusive_group()
-    for key, desc in margs.items():
-        if key not in ["clean", "batch"]:
-            group.add_argument("--%s" % key, help=desc, action="store_true", default=False)
-    args = parser.parse_args(arguments)
-    # if not arguments is provided print help
-    if not any(dict(args._get_kwargs()).values()):
-        parser.print_help()
-        exit(0)
-    # execution path
+def load_config():
+    global CURRENT_DIR
+    # normalize execution path
     CURRENT_DIR = utils.normpath(CURRENT_DIR)
     # the default configuration
     default_config = utils.normpath(os.path.join(REFLOW_DIR, "./default.config"))
@@ -139,220 +79,56 @@ if __name__ == "__main__":
     Config.read_configs(config_files)
     Config.set_env({"TECH_LIB": "technology.TECH_LIB", "PLATFORM": "reflow.PLATFORM"})
 
-    # clean tmp files
-    if args.clean:
-        for t in ("sim", "cov", "lint", "tree", "synth", "branch"):
-            for work_dir in Path(CURRENT_DIR).rglob(utils.get_tmp_folder_name(t, "**/")):
-                shutil.rmtree(work_dir)
 
-    # perform a collection of simulation
-    if args.batch:
-        # define working directory
-        batch_path = utils.get_tmp_folder_name("batch", "./")
-        os.environ["WORK_DIR"] = utils.normpath(os.path.join(CURRENT_DIR, batch_path))
-        # run simulations
-        t_start = time.time() * 1000.0
-        read_batch.main(CURRENT_DIR, args.sim, args.cov, args.lint)
-        t_end = time.time() * 1000.0
-        # remove previous stats
-        if os.path.exists("%s/batch.stats" % batch_path):
-            os.remove("%s/batch.stats" % batch_path)
-        # cumulate stats
-        db_batch = {}
-        for stats_path in Path(CURRENT_DIR).rglob("**/*.stats"):
-            with open(stats_path, "r+") as fp:
-                db_sim = dict(
-                    (
-                        line.split(":", 1)
-                        for i, line in enumerate(fp)
-                        if ":" in line and i > 0
-                    )
-                )
-            for k, v in db_sim.items():
-                tmp = db_batch[k] if k in db_batch else 0
-                try:
-                    db_batch[k] = float(v) + tmp
-                except ValueError:
-                    relog.error("%s values should be number" % stats_path)
-        # store statistics
-        with open(
-            utils.normpath(os.path.join(utils.get_tmp_folder(), "./batch.stats")), "w+"
-        ) as fp:
-            fp.write("%s\n" % datetime.now())
-            fp.write("Warnings: %d\n" % db_batch.get("Warnings", -1))
-            fp.write("Errors: %d\n" % db_batch.get("Errors", -1))
-            fp.write("Sim. Time: %d\n" % (t_end - t_start))
+def load_tools():
+    # get a list of all tools to be loaded for all context
+    context = {}
+    for id_tool in Config.tools:
+        ctx = id_tool[:3]
+        tool_name = Config.tools.get(id_tool)
+        if ctx in context:
+            context[ctx].append(tool_name)
+        else:
+            context[ctx] = [tool_name]
+    # ensure unicity of tool loading per context
+    for ctx in context:
+        context[ctx] = list(set(context[ctx]))
+    # determine the context
+    ctx, files, params = get_context()
+    # load all tools
+    for tool_name in context[ctx.value]:
+        # find the tool
+        tool_path = utils.tools.find_tool(tool_name)
+        sys.path.append(os.path.dirname(tool_path))
+        # load it and its config
+        tool = utils.tools.import_module(tool_name)
+        for name in dir(tool):
+            if name.startswith("task"):
+                globals()[name] = getattr(tool, name)
+        # read config files
+        for conf in Path(tool_path).rglob("*.config"):
+            Config.add_configs(conf)
 
-    # check lint error on the design
-    if args.lint:
-        type, files, params = prepare_task(type="lint")
-        if type is not SimType.DIGITAL:
-            relog.error("cannot lint mixed signal or analog simulations")
-            exit(0)
-        # launch the linter without callback
-        utils.tools.launch_tool(
-            Config.tools.get("DIG_LINTER"), "lint", NO_CALLBACKS, files, params
-        )
 
-    # display hierarchy of the design
-    if args.tree:
-        type, files, params = prepare_task(type="tree")
+def task_tree():
+    """
+    display hierarchy of the design
+    """
+
+    def tree(task):
+        files, params = read_sources.read_from(os.getcwd(), no_logger=False)
         design_tree.main(files, params)
 
-    # run a simulation
-    if args.sim:
-        type, files, params = prepare_task(type="sim", use_custom_logger=args.custom_log)
-        # load the simulator script
-        if type is SimType.DIGITAL:
-            tool_name = Config.tools.get("DIG_SIMULATOR")
-        elif type is SimType.ANALOG:
-            tool_name = Config.tools.get("ANA_SIMULATOR")
-        else:
-            relog.error("Not yet implementd mixed signal simulation")
-            relog.error("do a mix synthesis and call the spice netlist")
-            exit(0)
+    return {"actions": [tree], "title": doit_helper.task_name_as_title, "verbosity": 2}
 
-        # create callbacks
-        def _callbacks():
-            scripts = params.get("POST_SIM", [])
-            pre_sim = None
 
-            def post_sim(*args, **kwargs):
-                warnings_errors = []
-                raw_parser = utils.tools.import_tool(
-                    "raw_parser",
-                    "%s.py" % Config.tools.get("ANA_WAVEFORM_PARSER"),
-                    utils.normpath(os.path.join(REFLOW_DIR, "./analog/tools/parsers/")),
-                )
-                cwd = CURRENT_DIR.replace(utils.get_tmp_folder_name("batch", "/"), "")
-                waves = raw_parser.load_raw(cwd)
-                for script in scripts:
-                    s = utils.tools.import_tool("tmp", script, cwd)
-                    warnings_errors.append(s.main(waves))
-                return numpy.nansum(warnings_errors, axis=0)
+if __name__ == "__main__":
+    # load selected tools
+    load_config()
+    load_tools()
 
-            if type is SimType.ANALOG:
-                return (pre_sim, post_sim)
-            return NO_CALLBACKS
+    DOIT_CONFIG = doit_helper.DOIT_CONFIG
+    doit_helper.TaskNumber.ENVS = globals()
 
-        # execute simulation
-        utils.tools.launch_tool(tool_name, "sim", _callbacks(), files, params)
-
-    # show waveforms
-    if args.view_sim:
-        type, files, params = prepare_task(type="sim")
-        # load the simulator script
-        if type is SimType.DIGITAL:
-            tool_name = Config.tools.get("DIG_WAVEFORM_VIEWER")
-            sim = Config.tools.get("DIG_SIMULATOR")
-        elif type is SimType.ANALOG:
-            tool_name = Config.tools.get("ANA_WAVEFORM_VIEWER")
-            sim = Config.tools.get("ANA_SIMULATOR")
-        else:
-            relog.error("Not yet implementd mixed signal simulation")
-            exit(0)
-        # get simulator waveform file format
-        sim_path = utils.tools.find_tool(sim)
-        for conf in Path(sim_path).rglob("*.config"):
-            Config.add_configs(conf)
-        wave_format = getattr(Config, sim).get("format")
-        # view the waveforms
-        utils.tools.launch_tool(tool_name, "view", NO_CALLBACKS, wave_format)
-        os.remove(utils.normpath(os.path.join(utils.get_tmp_folder(), "./view.stats")))
-
-    # synthesis
-    if args.synth:
-        type, files, params = prepare_task(type="synth")
-        # load the simulator script
-        tool_name = Config.tools.get("DIG_SYNTHESIS")
-        utils.tools.launch_tool(tool_name, "synth", NO_CALLBACKS, files, params, "verilog")
-
-    # code coverage
-    if args.cov:
-        type, files, params = prepare_task(type="cov")
-        # load the simulator script
-        if type is SimType.DIGITAL:
-            tool_name = Config.tools.get("DIG_COVERAGE")
-        else:
-            relog.error("cannot coverage mixed signal or analog simulations")
-            exit(0)
-        # execute simulation
-        utils.tools.launch_tool(tool_name, "cov", NO_CALLBACKS, files, params)
-
-    # view coverage
-    if args.view_cov:
-        relog.warning("Not yet implemented")
-        exit(0)
-
-    # generate an html report
-    if args.report:
-        # define working directory
-        os.environ["WORK_DIR"] = utils.normpath(
-            os.path.join(CURRENT_DIR, utils.get_tmp_folder_name("report", "./"))
-        )
-        os.makedirs(os.environ["WORK_DIR"], exist_ok=True)
-        # read all stats
-        db = {"blocks": []}
-        read_stat_done = []
-        # read batch stats
-        for bstats_path in Path(CURRENT_DIR).rglob("**/batch.stats"):
-            db_batch = {"sims": [], "lints": [], "covs": []}
-            # <block>/.tmp_<type of sim>/<type of sim>.stats
-            # parent dir of tests
-            pwd = os.path.dirname(os.path.dirname(bstats_path))
-            # block name
-            batch = os.path.basename(pwd)
-            # analyse only if not top most one
-            if batch == os.path.basename(CURRENT_DIR):
-                type, db_sim = utils.stats.read_sim_stat(bstats_path)
-                db.update(db_sim)
-                continue
-            for stats_path in Path(pwd).rglob("**/*.stats"):
-                # do not count twice
-                if "batch.stats" in str(stats_path):
-                    continue
-                type, db_sim = utils.stats.read_sim_stat(stats_path)
-                if type != "batch":
-                    db_batch["%ss" % type].append(db_sim)
-                # aggregate
-                for k, v in db_sim.items():
-                    tmp = db_batch[k] if k in db_batch else 0
-                    if k != "name":
-                        try:
-                            db_batch[k] = float(v) + tmp
-                        except ValueError:
-                            relog.error("%s values should be number" % stats_path)
-                read_stat_done.append(stats_path)
-            utils.stats.add_extra_stats(db_batch)
-            db_batch["name"] = batch
-            db["blocks"].append(db_batch)
-        # read other sims
-        db_batch = {"sims": [], "lints": [], "covs": []}
-        for stats_path in Path(CURRENT_DIR).rglob("**/*.stats"):
-            if stats_path not in read_stat_done and "batch.stats" not in str(stats_path):
-                type, db_sim = utils.stats.read_sim_stat(stats_path)
-                # aggregate
-                for k, v in db_sim.items():
-                    tmp = db_batch[k] if k in db_batch else 0
-                    if k != "name":
-                        try:
-                            db_batch[k] = float(v) + tmp
-                        except ValueError:
-                            relog.error("%s values should be number" % stats_path)
-                read_stat_done.append(stats_path)
-                if type != "batch":
-                    db_batch["%ss" % type].append(db_sim)
-        # add some stats to the db
-        utils.stats.add_extra_stats(db_batch)
-        db_batch["name"] = "others"
-        db["blocks"].append(db_batch)
-        # read the html template
-        t = Template(
-            filename=utils.normpath(
-                os.path.join(REFLOW_DIR, "./common/templates/report.html.mako")
-            )
-        )
-        with open(
-            utils.normpath(os.path.join(utils.get_tmp_folder(), "report.html")), "w+"
-        ) as fp:
-            fp.write(t.render(**db))
+    # execute task selected
+    doit.run(globals())
