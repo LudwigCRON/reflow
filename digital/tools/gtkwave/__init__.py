@@ -10,40 +10,40 @@ sys.path.append(os.environ["REFLOW"])
 
 import common.utils as utils
 import common.relog as relog
-import common.executor as executor
+import common.utils.doit as doit_helper
+from common.read_config import Config
+from doit.action import CmdAction
 
 
+TOOLS_DIR = utils.normpath(os.path.dirname(os.path.abspath(__file__)))
+TOOLS_CFG = os.path.join(TOOLS_DIR, "tools.config")
 DEFAULT_TMPDIR = utils.get_tmp_folder()
 
 
-def main(format: str = "vcd"):
-    relog.step("Search waveforms")
-    vcd_path = None
-    view = None
-    for path in Path(DEFAULT_TMPDIR).rglob("**/*.%s" % format):
-        vcd_path = path
-        break
-    relog.info(vcd_path)
-    for path in Path(os.path.dirname(DEFAULT_TMPDIR)).rglob("**/*.gtkw"):
-        view = path
-        break
-    relog.info("loading view %s" % view)
-    # define what to open
-    file_to_read = view if view else vcd_path
-    relog.step("Open waveforms")
-    if sys.platform == "linux" or sys.platform == "linux2":
-        # linux
-        executor.sh_exec("gtkwave '%s'" % file_to_read, MAX_TIMEOUT=-1, SHELL=False)
-    elif sys.platform == "darwin":
-        # OS X
-        executor.sh_exec("open -a gtkwave '%s'" % file_to_read, MAX_TIMEOUT=-1, SHELL=False)
-    elif sys.platform == "win32":
-        # Windows...
-        executor.sh_exec("gtkwave '%s'" % file_to_read, MAX_TIMEOUT=-1, SHELL=False)
-    else:
-        relog.error("Unknown operating system")
-    return (0, 0)
+def task_view_sim():
+    """
+    display digital waveforms
+    """
 
+    def run(task):
+        vcd_path, view = None, None
+        # search for waveform file
+        for path in Path(DEFAULT_TMPDIR).rglob("**/*.%s" % Config.gtkwave.get("format")):
+            vcd_path = path
+            break
+        # search for gtkwave view
+        for path in Path(os.path.dirname(DEFAULT_TMPDIR)).rglob("**/*.gtkw"):
+            view = path
+            break
+        file_to_read = view if view else vcd_path
+        if sys.platform in ["linux", "linux2", "win32"]:
+            cmd = "gtkwave '%s'"
+        elif sys.platform in ["darwin"]:
+            cmd = "open -a gtkwave '%s'"
+        # register actions
+        task.actions.append(CmdAction(cmd % file_to_read))
 
-if __name__ == "__main__":
-    main(sys.argv[1])
+    return {
+        "actions": [run],
+        "title": doit_helper.task_name_as_title,
+    }

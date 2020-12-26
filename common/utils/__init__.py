@@ -8,5 +8,5 @@ import common.utils.tools as tools
 import common.utils.graphs as graphs
 import common.utils.parsers as parsers
 import common.utils.wine as wine
-
+import common.utils.doit as doit
 from common.utils.run import *
