@@ -1,0 +1,315 @@
+Dependencies
+============
+- doit: tasks
+- tiny-orm: database
+- mako: template
+- pyyaml: yaml support
+- tkinter: gui
+
+Architecture
+============
+for each tool there is a doit file defining
+the tasks to be performed.
+
+```
+digital/
+    tool1/
+        - tasks.py
+        - tools.config
+    tool2/
+        - tasks.py
+        - tools.config
+    tool3/
+        - tasks.py
+        - tools.config
+```
+
+run is a script that will:
+- load the tools defined in project.config
+- get list of actions for each tools
+- execute the action given found in the first tool
+  loaded having it
+
+project tool loaded by default:
+- doit run create project
+    - project.yaml
+    - project.config
+- doit run project-config
+- doit run project-config:mem
+
+iverilog tool:
+- doit run lint
+- doit run sim
+- doit run sim:subpath
+
+covered tool:
+- doit run cov
+- doit run cov:subpath
+
+yosys tool:
+- doit run synth
+
+Database
+========
+use a sqlite database for task executed by run:
+task_name | cwd | exec_time | elapsed_time | success | score
+----------|-----|-----------|--------------|---------|-------
+  str     | str | str       | int          | bool    | float
+
+for the exec_time the date follows the specified format `yyyy-mm-dd hh:mm:ss`
+
+use a sqlite database for hierarchy and instances information provided for templating engine. The tables are described below
+
+Modules
+-------
+
+name | path | type | is_memory
+-----|------|------|----------
+str  | str  | str  | bool
+
+the type is one of the following:
+- RAM
+- ROM
+- OTP
+- MTP
+- NVRAM
+- EEPROM
+- FLASH
+- ADC
+- DAC
+- CUSTOM
+
+instances
+------------
+
+id | name | module 
+---|------|-------
+int| str  | str
+
+:warning: As for most synthesizer and simulator, the name of a module should
+be unique, it is reasonnable to assume that module's name are their
+identifier.
+
+pins
+-----
+
+name | instance | direction | type | msb | lsb | net | related_pin | cap_load | res_load | access_time | setup_time | hold_time | transition_time | analysis_view 
+-----|----------|-----------|------|-----|-----|-----|-------------|-----------|----------|-------------|------------|-----------|----------------|---------------
+str | int | int | int | int | int | str | str | float | float | float | float | float | float | str
+
+direction can be either:
+- input = 0
+- output = 1
+- inout = 2
+
+type can be either:
+- wire = 0
+- reg = 1
+- real = 2
+
+cap_load is expressed in Farad, res_load in Ohm, and time information is expressed in second.
+
+analysis_view is the tag assigned for the specific timing and
+loading information. This is usually needed for 
+multimode-multicorner synthesis. In a more traditional way,
+it is expected to read either min, typ, max.
+
+parameters
+------------
+
+instance | name | value
+---------|------|-------
+int      | str  | str
+
+
+Templating
+==========
+
+expected templating for a verilog instance with the mako engine is
+```mako
+% for inst in instances:
+    % if inst.params:
+    ${inst.module.name} #(
+        % for param, value in inst.params:
+            .${param}   (${value})${"," if not loop.last else ""}
+        % endfor
+    ) ${inst.name} (
+        % for pin in inst.pins:
+        .${pin.name}    (${pin.net})${"," if not loop.last else ""}
+        % endfor
+    );
+    % else:
+    ${inst.module.name}  ${inst.name} (
+        % for pin in inst.pins:
+        .${pin.name}    (${pin.net})${"," if not loop.last else ""}
+        % endfor
+    );
+    % endif
+
+% endfor
+```
+
+pins shall be sorted by name by default
+
+parameters shall be sorted by name by default
+
+It should also be possible to do the following
+```mako
+% for pin in inst.inputs():
+    % if pin.width() > 1:
+    ${pin.type} [${pin.msb}:${pin.lsb}] ${pin.name};
+    % else:
+    ${pin.type}                         ${pin.name};
+    % endif
+% endfor
+
+% for pin in inst.outputs():
+    % if pin.width() > 1:
+    ${pin.type} [${pin.msb}:${pin.lsb}] ${pin.name};
+    % else:
+    ${pin.type}                         ${pin.name};
+    % endif
+% endfor
+
+% for pin in inst.inouts():
+    % if pin.width() > 1:
+    ${pin.type} [${pin.msb}:${pin.lsb}] ${pin.name}_i;
+    ${pin.type} [${pin.msb}:${pin.lsb}] ${pin.name}_o;
+    % else:
+    ${pin.type}                         ${pin.name}_i;
+    ${pin.type}                         ${pin.name}_o;
+    % endif
+% endfor
+```
+
+Project
+========
+
+a project.yaml to describe the hierarchy as the following:
+```yaml
+...
+instance_name:
+    module: <module path>
+    # instance parameters
+    params:
+        name: value
+        name: value
+    # connections
+    pins:
+        name1: first_net_name
+        name2[2:0]: second_net_name[11:9]
+...
+```
+
+To apply specific formula to compute some value, one should
+use a configurator (excel file + script), GUI tools, ...
+
+Configuration
+---------------
+It should be possible to:
+- add a module from a list
+- add new search_path for modules (update the list)
+- add a new instance
+- remove an instance
+- edit parameters (table with default value)
+- list all pins for an instance
+- create default net for connections
+- read an existing project.yaml
+- save into project.yaml
+
+generated project.yaml should list all pins for an instance
+and all parameters
+
+if a file called <module name>.config is found the configurator
+should load it. This file define extra field and formulas to compute
+the value of some parameters:
+```yaml
+computable:
+    params:
+        - name1
+        - name2
+fields:
+    - name: first_field
+      type: list
+      values:
+        - "PORT"
+        - "SDATA"
+        - "BUFFERED_PORT"
+        - "BUFFERED_SDATA"
+        - "0"
+        - "1"
+    - name: second_field
+      type: int
+      min: -1
+      max: 7
+      step: 1
+    - name: third_field
+      type: list
+      values:
+        - "PORT"
+        - "SDATA"
+        - "BUFFERED_PORT"
+        - "BUFFERED_SDATA"
+        - "0"
+        - "1"
+helps:
+    first_field: |-
+        PORT: use internal port for the configuration
+        SDATA: use wire called *_config_first_field
+        BUFFERED_PORT: use internal port and add resynchronizer
+        BUFFERED_SDATA: use wire *_config_first_field and add resynchronizer
+    second_field: |-
+        By default should -1 to use PORT
+        other values set name2 as a constant value at synthesis
+
+        The value is encoded on 3-bits
+formulas:
+    - name1: |-
+        keys = ["first_field", "third_field"]
+        def complexe_proc(arg1, weight):
+            if "PORT" in arg1:
+                ans += weight
+        name1 = sum([complexe_proc(a, 2**i) for i, a in enumerate(keys)])
+    - name2: |-
+        name2 = hex(second_field)[2:] if second_field >= 0 else "-1"
+```
+
+a parameter that is found in the computable section should not be
+manualy editable. In the GUI, a Label should be used rather than
+a TextBox. Otherwise, a textbox is used.
+
+supported types should be:
+- int: 0x and 0b format should be recognized and parsed
+       invalid input should be notified
+- list: a combo box with only specified values
+- str: a text box to support any text input
+
+help should be display as a tooltip or alongside and kept displayed
+while a field is focused. the help section can contains extra 
+information for defined fields, computable parameters, parameters
+defined in the module, or pins.
+
+Memory Map & Protection
+------------------------
+To list all the possible zone, the configurator should read first
+the project.yaml and list all memories. Their parameters should contains at list start and size information.
+
+A map of the available memories should be represented.
+One can then define zones and their permissions.
+
+start | size | key | permission
+------|------|-----|------------
+int   | int  | int | str
+
+a key is associated to each "user". A "user" can be a specific
+component in a given mode.
+
+the permission is one of the following:
+- "--": a given user cannot read nor write this zone
+- "r-": a given user can only read this zone
+- "-w": a given user can only write this zone
+- "rw": a given user can read and write this zone
+
+:warning: if at least one memory block as been declared in the project.yaml,
+a memory protection unit should be generated and automatically
+instantiated.
