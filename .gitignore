@@ -1,14 +1,13 @@
 # cache file for macOS
 .DS_Store
 # generated simulation files
-.tmp_sim
-.tmp_cov
-.tmp_lint
-.tmp_batch
+.tmp_*/
 *.raw
 *.log
 # python cache files
 __pycache__
+# db file of doit
+.doit.db
 # do not store the environment
 # but prepare a requirement.txt 
 # for needed python modules
