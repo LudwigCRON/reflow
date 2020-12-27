@@ -131,11 +131,14 @@ def task_prepare():
     list parameters and define
     """
 
-    files, params = read_sources.read_from(os.getenv("CURRENT_DIR"), no_logger=False)
+    def run(task):
+        files, params = read_sources.read_from(os.getenv("CURRENT_DIR"), no_logger=False)
+        task.file_dep.update([f for f, m in files])
+        task.actions.append(PythonAction(generate_cmd, [files, params]))
 
     return {
-        "actions": [PythonAction(generate_cmd, [files, params])],
-        "file_dep": [f for f, m in files],
+        "actions": [run],
+        "file_dep": [],
         "targets": [var_vault.SRCS],
         "title": doit_helper.task_name_as_title,
         "clean": [doit_helper.clean_targets],

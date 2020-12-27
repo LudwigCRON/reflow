@@ -7,16 +7,15 @@ import configparser
 
 import common.relog as relog
 import common.utils as utils
-import common.executor as executor
 
 from enum import Enum
 from collections import Counter
 
 
 class SimType(Enum):
-    SIMULATION = (0,)
-    COVERAGE = (1,)
-    LINT = (2,)
+    SIMULATION = 0
+    COVERAGE = 1
+    LINT = 2
     ALL = 3
 
 
@@ -193,105 +192,17 @@ def read_batch(batch_file: str):
     return batch
 
 
-def run(
-    cwd, batch, sim_only: bool = False, cov_only: bool = False, lint_only: bool = False
-):
-    N = len(batch.sections())
-    TMP_DIR = utils.get_tmp_folder()
-    # create directory for simulation
-    for k, rule in enumerate(batch):
-        if batch.has_option(rule, "__path__"):
-            relog.info(f"[{k}/{N}] Run simulation {rule}")
-            p = utils.normpath(os.path.join(cwd, batch.get(rule, "__path__")))
-            s = eval(batch.get(rule, "__sim_type__"))
-            o = utils.normpath(os.path.join(TMP_DIR, rule))
-            l = utils.normpath(os.path.join(o, "Sources.list"))
-            b = utils.normpath(os.path.join(p, "Batch.list"))
-            os.makedirs(o, exist_ok=True)
-            if not os.path.exists(b):
-                # create the Sources.list
-                with open(l, "w+") as fp:
-                    path = batch.get(rule, "__path__")
-                    dedent = "".join(["../"] * (2 + path.count("/")))
-                    fp.write("%s\n" % utils.normpath(os.path.join(dedent, path)))
-                    for option in batch.options(rule):
-                        if not option.startswith("__"):
-                            values = batch.get(rule, option, raw=True)
-                            if "[" in values:
-                                values = eval(values)
-                                fp.write(f"{option}={' '.join(values)}\n")
-                            else:
-                                fp.write(f"{option}={values}\n")
-            # select which simulations should be performed
-            batch_options = [
-                "sim",
-                "cov" if cov_only else "",
-                "lint" if lint_only else "",
-            ]
-            sim_only, cov_only, lint_only = (
-                sim_only and not cov_only and not lint_only,
-                cov_only and not sim_only and not lint_only,
-                lint_only and not cov_only and not sim_only,
-            )
-            if not sim_only and not cov_only and not lint_only:
-                sim_only, cov_only, lint_only = True, True, True
-            # run the simulations
-            run_path = utils.normpath(os.getenv("REFLOW") + "/envs/bin/run")
-            if os.path.exists(b):
-                for batch_option in batch_options:
-                    if batch_option:
-                        executor.sh_exec(
-                            "python3 '%s' batch %s" % (run_path, batch_option),
-                            CWD=p,
-                            ENV=os.environ.copy(),
-                        )
-            else:
-                if sim_only and s in [SimType.SIMULATION, SimType.ALL]:
-                    executor.sh_exec(
-                        "python3 '%s' sim" % run_path,
-                        CWD=o,
-                        ENV=os.environ.copy(),
-                        SHELL=True,
-                    )
-                if cov_only and s in [SimType.COVERAGE, SimType.ALL]:
-                    executor.sh_exec(
-                        "python3 '%s' cov" % run_path,
-                        CWD=o,
-                        ENV=os.environ.copy(),
-                        SHELL=True,
-                    )
-                if lint_only and s in [SimType.LINT, SimType.ALL]:
-                    executor.sh_exec(
-                        "python3 '%s' lint" % run_path,
-                        CWD=o,
-                        ENV=os.environ.copy(),
-                        SHELL=True,
-                    )
-
-
-def main(cwd, sim_only: bool = False, cov_only: bool = False, lint_only: bool = False):
-    batch = read_batch(cwd)
-    if batch:
-        run(cwd, batch, sim_only, cov_only, lint_only)
-    else:
-        relog.error("No Batch.list file found")
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Process some integers.")
-    parser.add_argument("-i", "--input", type=str, help="list of input files")
-    parser.add_argument(
-        "-s", "--sim", default=False, action="store_true", help="select only simulation"
-    )
-    parser.add_argument(
-        "-c", "--cov", default=False, action="store_true", help="select only coverage"
-    )
-    parser.add_argument(
-        "-l", "--lint", default=False, action="store_true", help="select only lint"
-    )
-    parser.add_argument(
-        "-nl", "--no-logger", action="store_true", help="already include logger macro"
-    )
-    args = parser.parse_args()
-    # read batch description file
-    main(args.input, args.sim, args.cov, args.lint)
+def create_batch_sources(batch, rule, rule_path: str):
+    sources_list = utils.normpath(os.path.join(rule_path, "Sources.list"))
+    with open(sources_list, "w+") as fp:
+        path = batch.get(rule, "__path__")
+        dedent = "".join(["../"] * (2 + path.count("/")))
+        fp.write("%s\n" % utils.normpath(os.path.join(dedent, path)))
+        for option in batch.options(rule):
+            if not option.startswith("__"):
+                values = batch.get(rule, option, raw=True)
+                if "[" in values:
+                    values = eval(values)
+                    fp.write(f"{option}={' '.join(values)}\n")
+                else:
+                    fp.write(f"{option}={values}\n")

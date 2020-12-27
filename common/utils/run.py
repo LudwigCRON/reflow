@@ -6,6 +6,8 @@ import sys
 import shutil
 import datetime
 
+from pathlib import Path
+
 
 def normpath(s: str):
     return os.path.normpath(s).replace("\\", "/")
@@ -49,12 +51,11 @@ def clean_tmp_folder(type: str = "*"):
     """
     remove the content and the folder use for all tasks
     """
-    path = os.getcwd()
-    if "WORK_DIR" in os.environ:
-        path = normpath(os.environ["WORK_DIR"])
+    p = os.getcwd()
     prefix = os.getenv("WORK_DIR_PREFIX") if "WORK_DIR_PREFIX" in os.environ else ".tmp_"
-    for tmp_folder in Path(path).rglob(prefix + type):
-        if os.path.is_dir(tmp_folder):
+    for tmp_folder in Path(p).rglob(prefix + type):
+        print(tmp_folder)
+        if os.path.isdir(tmp_folder):
             shutil.rmtree(tmp_folder)
 
 

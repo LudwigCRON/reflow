@@ -44,7 +44,9 @@ def set_env_vars():
 
 def get_context(use_custom_logger: bool = False):
     # list files and mime types
-    files, params = read_sources.read_from(os.getenv("CURRENT_DIR"), no_logger=True)
+    files, params = [], {}
+    if "Sources.list" in os.listdir(os.getenv("CURRENT_DIR")):
+        files, params = read_sources.read_from(os.getenv("CURRENT_DIR"), no_logger=True)
     # determine the type of simulation
     digital_only = all((utils.files.is_digital(file) for file, _ in files))
     analog_only = all((utils.files.is_analog(file) for file, _ in files))
