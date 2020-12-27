@@ -3,7 +3,6 @@
 import os
 import sys
 import shlex
-import argparse
 import traceback
 
 from enum import Enum
@@ -33,12 +32,12 @@ def resolve_path(path: str, base: str = "") -> str:
     i = b.find(first_dir.lower())
     if i >= 0:
         return os.path.join(base[:i], p)
-    # in platform
-    platform = os.getenv("PLATFORM", "ganymede").lower()
-    i = b.find(platform)
+    # relative to project folder
+    project = os.getenv("PROJECT", "ganymede").lower()
+    i = b.find(project)
     if i >= 0:
         new_path = os.path.join(
-            base[: i + len(platform)],
+            base[: i + len(project)],
             "digital"
             if utils.files.is_digital(base)
             else "analog"
@@ -50,7 +49,7 @@ def resolve_path(path: str, base: str = "") -> str:
             return new_path
     # in platform without domain separation
     new_path = os.path.join(
-        base[: i + len(platform)],
+        base[: i + len(project)],
         path[1:],
     )
     if os.path.exists(new_path):
@@ -367,7 +366,7 @@ def read_sources(filepath: str, graph: dict = {}, depth: int = 0):
     return ans
 
 
-def read_from(sources_list: str, no_logger: bool = False, no_stdout: bool = True):
+def read_from(sources_list: str, no_logger: bool = False):
     files = []
     parameters = {}
     # check input exist
@@ -376,10 +375,7 @@ def read_from(sources_list: str, no_logger: bool = False, no_stdout: bool = True
     # add the log package file
     if not no_logger:
         log_inc = os.path.join(os.environ["REFLOW"], "digital/packages/log.svh")
-        if no_stdout:
-            files.append((log_inc, utils.files.get_type(log_inc)))
-        else:
-            print(log_inc, utils.files.get_type(log_inc), sep=";")
+        files.append((log_inc, utils.files.get_type(log_inc)))
     # store the list of files
     graph = {}
     try:
@@ -394,21 +390,13 @@ def read_from(sources_list: str, no_logger: bool = False, no_stdout: bool = True
         if isinstance(node, Node):
             _t = utils.files.get_type(node.name)
             if _t:
-                if no_stdout:
-                    files.append((node.name, _t))
-                else:
-                    print(node.name, _t, sep=";")
+                files.append((node.name, _t))
     # list the parameters
     # from graph on reverse orders to apply the latest
     # value of the parameter in the hierarchy
     for node in graph[::-1]:
-        if no_stdout and isinstance(node, Node):
+        if isinstance(node, Node):
             parameters.update(node.params)
-        elif no_stdout:
-            pass
-        else:
-            for key, value in node.params.items():
-                print("%s\t:\t%s" % (key, value))
     # define the most accurate timescale define
     min_ts = (1, "s", 1, "ms")
     for node in graph:
@@ -429,26 +417,12 @@ def read_from(sources_list: str, no_logger: bool = False, no_stdout: bool = True
             ):
                 min_ts = (*min_ts[0:2], rn, ru)
     if utils.parsers.evaluate_eng_unit(*min_ts[0:2]) == 1.0:
-        print("TIMESCALE\t:\t'1ns/100ps'")
         parameters["TIMESCALE"] = "1ns/100ps"
     else:
-        print("TIMESCALE\t:\t'%s%s/%s%s'" % min_ts)
         parameters["TIMESCALE"] = "%s%s/%s%s" % min_ts
     # define the top module
     if isinstance(graph[-1], Node):
-        print("TOP_MODULE\t:\t'%s'" % graph[-1].name)
         parameters["TOP_MODULE"] = graph[-1].name
-    if no_stdout:
-        # normalize path of files accross platform
-        files = [(f.replace("\\", "/"), m) for f, m in files]
-        return files, parameters
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Process some integers.")
-    parser.add_argument("-i", "--input", type=str, help="list of input files")
-    parser.add_argument(
-        "-nl", "--no-logger", action="store_true", help="already include logger macro"
-    )
-    args = parser.parse_args()
-    read_from(args.input, args.no_logger, False)
+    # normalize path of files accross platform
+    files = [(utils.normpath(f), m) for f, m in files]
+    return files, parameters

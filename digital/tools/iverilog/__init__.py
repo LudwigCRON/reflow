@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
+# coding: utf-8
+
 import os
 import sys
 import json
-
-sys.path.append(os.environ["REFLOW"])
 
 import common.utils as utils
 import common.relog as relog
@@ -15,12 +15,11 @@ from doit.task import clean_targets
 from doit.action import CmdAction, PythonAction
 from common.read_config import Config
 from common.utils.files import get_type, is_digital
+from common.utils.db import Vault
 
 
-TOOLS_DIR = utils.normpath(os.path.dirname(os.path.abspath(__file__)))
-TOOLS_CFG = os.path.join(TOOLS_DIR, "tools.config")
-DEFAULT_TMPDIR = utils.get_tmp_folder()
-VARS_DB = utils.normpath(os.path.join(DEFAULT_TMPDIR, "vars.json"))
+var_vault = Vault()
+flag_vault = Vault()
 
 
 def transform_flags(flags: str) -> str:
@@ -43,19 +42,16 @@ def transform_flags(flags: str) -> str:
     return " ".join(flags)
 
 
-def generate_cmd(files_mimes: list = [], params: dict = {}, target: str = "./srcs.list"):
+def generate_cmd(files_mimes: list = [], params: dict = {}):
     # create the list of sources
     files = [f for f, m in files_mimes]
     mimes = list(set([m for f, m in files_mimes]))
     inc_dirs = read_sources.resolve_includes(files)
-    cwd = os.getcwd()
-    PLATFORM_NAME = os.getenv("PLATFORM")
-    PLATFORM_DIR = cwd[: cwd.find(PLATFORM_NAME) + len(PLATFORM_NAME)]
-    with open(target, "w+") as fp:
+    with open(var_vault.SRCS, "w+") as fp:
         # include search pathes
         for inc_dir in inc_dirs:
             fp.write("+incdir+%s\n" % inc_dir)
-        fp.write("+incdir+%s\n" % PLATFORM_DIR)
+        fp.write("+incdir+%s\n" % var_vault.PROJECT_DIR)
         # time scale
         if "TIMESCALE" in params:
             fp.write("+timescale+%s\n" % params["TIMESCALE"])
@@ -87,8 +83,7 @@ def generate_cmd(files_mimes: list = [], params: dict = {}, target: str = "./src
             else "",
         ]
     )
-    FLAGS = {}
-    FLAGS["iverilog"] = list(set(flags))
+    flag_vault.iverilog = list(set(flags))
     # declare needed external VPI modules
     flags = []
     if "SIM_FLAGS" in params:
@@ -96,34 +91,36 @@ def generate_cmd(files_mimes: list = [], params: dict = {}, target: str = "./src
             tf = transform_flags(flag)
             if tf and tf[:2] in ("-m"):
                 flags.append(tf)
-    FLAGS["vvp"] = flags
-    with open(target + ".flags", "w+") as fp:
-        json.dump(FLAGS, fp, indent=4)
+    flag_vault.vvp = flags
+
+
+def update_vars():
+    var_vault.WORK_DIR = utils.get_tmp_folder()
+    var_vault.PROJECT_DIR = os.getenv("PROJECT_DIR")
+    var_vault.VARS_DB = utils.normpath(os.path.join(var_vault.WORK_DIR, "vars.json"))
+    var_vault.SRCS = utils.normpath(os.path.join(var_vault.WORK_DIR, "srcs.list"))
+    var_vault.EXE = utils.normpath(os.path.join(var_vault.WORK_DIR, "run.vvp"))
+    var_vault.PARSER_LOG = utils.normpath(os.path.join(var_vault.WORK_DIR, "parser.log"))
+    var_vault.SIM_LOG = utils.normpath(os.path.join(var_vault.WORK_DIR, "sim.log"))
+    if "iverilog" in Config.data:
+        var_vault.WAVE_FORMAT = Config.iverilog.get("format")
+        var_vault.WAVE = utils.normpath(
+            os.path.join(var_vault.WORK_DIR, "run.%s" % var_vault.WAVE_FORMAT)
+        )
+    else:
+        var_vault.WAVE_FORMAT = "vcd"
+        var_vault.WAVE = utils.normpath(os.path.join(var_vault.WORK_DIR, "run.vcd"))
+
+
+update_vars()
 
 
 def task_vars_db():
     """
     set needed global variables
     """
-    # define global variables
-    def set_vars():
-        vars = {
-            "DEFAULT_TMPDIR": DEFAULT_TMPDIR,
-            "SRCS": utils.normpath(os.path.join(DEFAULT_TMPDIR, "srcs.list")),
-            "EXE": utils.normpath(os.path.join(DEFAULT_TMPDIR, "run.vvp")),
-            "PARSER_LOG": utils.normpath(os.path.join(DEFAULT_TMPDIR, "parser.log")),
-            "SIM_LOG": utils.normpath(os.path.join(DEFAULT_TMPDIR, "sim.log")),
-            "WAVE": utils.normpath(
-                os.path.join(DEFAULT_TMPDIR, "run.%s" % Config.iverilog.get("format"))
-            ),
-            "WAVE_FORMAT": Config.iverilog.get("format"),
-            "TOOLS_DIR": TOOLS_DIR,
-        }
-        with open(VARS_DB, "w+") as fp:
-            json.dump(vars, fp, indent=4)
-        return vars
 
-    return {"actions": [(set_vars,)], "title": doit_helper.no_title}
+    return {"actions": [(update_vars,)], "title": doit_helper.no_title}
 
 
 @create_after(executed="vars_db")
@@ -134,18 +131,14 @@ def task_prepare():
     list parameters and define
     """
 
-    files, params = read_sources.read_from(os.getcwd(), no_logger=False)
-    if VARS_DB:
-        with open(VARS_DB, "r+") as fp:
-            vars = json.load(fp)
-            target = vars["SRCS"]
+    files, params = read_sources.read_from(os.getenv("CURRENT_DIR"), no_logger=False)
 
     return {
-        "actions": [PythonAction(generate_cmd, [files, params, target])],
+        "actions": [PythonAction(generate_cmd, [files, params])],
         "file_dep": [f for f, m in files],
-        "targets": [target, target + ".flags"],
+        "targets": [var_vault.SRCS],
         "title": doit_helper.task_name_as_title,
-        "clean": [clean_targets],
+        "clean": [doit_helper.clean_targets],
     }
 
 
@@ -156,24 +149,21 @@ def task_compile():
     """
 
     cmd = "iverilog %s -o %s -c %s"
-    fgs, dep, target = "", "", ""
-    if VARS_DB:
-        with open(VARS_DB, "r+") as fp:
-            vars = json.load(fp)
-            dep = vars["SRCS"]
-            target = vars["EXE"]
-    # get flags
-    if os.path.exists(dep + ".flags"):
-        with open(dep + ".flags", "r+") as fp:
-            FLAGS = json.load(fp)
-            fgs = " ".join(FLAGS["iverilog"])
+    flags = ""
+    if flag_vault.iverilog:
+        flags = " ".join(flag_vault.iverilog)
 
     return {
-        "actions": [CmdAction(cmd % (fgs, target, dep), save_out=vars["PARSER_LOG"])],
-        "file_dep": [dep, dep + ".flags"],
-        "targets": [target, vars["PARSER_LOG"]],
+        "actions": [
+            CmdAction(
+                cmd % (flags, var_vault.EXE, var_vault.SRCS),
+                save_out=var_vault.PARSER_LOG,
+            )
+        ],
+        "file_dep": [var_vault.SRCS],
+        "targets": [var_vault.EXE, var_vault.PARSER_LOG],
         "title": doit_helper.task_name_as_title,
-        "clean": [clean_targets],
+        "clean": [doit_helper.clean_targets],
     }
 
 
@@ -190,30 +180,19 @@ def task_sim():
             os.rename("./dump.%s" % wave_format, wave)
 
     cmd = "vvp -i %s %s -%s"
-    fgs, dep, target, fmt = "", "", "", ""
-
-    if VARS_DB:
-        with open(VARS_DB, "r+") as fp:
-            vars = json.load(fp)
-            dep = vars["EXE"]
-            srcs = vars["SRCS"]
-            fmt = vars["WAVE_FORMAT"]
-            target = vars["WAVE"]
-    # get flags
-    if os.path.exists(srcs + ".flags"):
-        with open(srcs + ".flags", "r+") as fp:
-            FLAGS = json.load(fp)
-            fgs = " ".join(FLAGS["vvp"])
 
     return {
         "actions": [
-            CmdAction(cmd % (dep, fgs, fmt), save_out=vars["SIM_LOG"]),
-            PythonAction(move_dump, [target, fmt]),
+            CmdAction(
+                cmd % (var_vault.EXE, flag_vault.vvp, var_vault.WAVE_FORMAT),
+                save_out=var_vault.SIM_LOG,
+            ),
+            PythonAction(move_dump, [var_vault.WAVE, var_vault.WAVE_FORMAT]),
         ],
-        "file_dep": [dep, srcs + ".flags"],
-        "targets": [target],
+        "file_dep": [var_vault.EXE],
+        "targets": [var_vault.WAVE],
         "title": doit_helper.task_name_as_title,
-        "clean": [clean_targets],
+        "clean": [doit_helper.clean_targets],
         "verbosity": 2,
     }
 
@@ -224,15 +203,8 @@ def task_lint():
     collect parsing operation
     """
 
-    cmd = "iverilog %s -o %s -c %s"
-    if VARS_DB:
-        with open(VARS_DB, "r+") as fp:
-            vars = json.load(fp)
-            dep = vars["SRCS"]
-            tgt = vars["EXE"]
-
     return {
-        "actions": [(relog.display_log, (vars["PARSER_LOG"],))],
-        "file_dep": [vars["PARSER_LOG"]],
+        "actions": [(relog.display_log, (var_vault.PARSER_LOG,))],
+        "file_dep": [var_vault.PARSER_LOG],
         "title": doit_helper.task_name_as_title,
     }

@@ -10,20 +10,13 @@ from pathlib import Path
 
 # assume the run utility is placed in the envs/bin/ directory
 ENVBIN_DIR = os.path.dirname(os.path.realpath(__file__))
-# current execution path
-CURRENT_DIR = os.getcwd()
 # define the path where is stored the flow
 REFLOW_DIR = os.environ["REFLOW"]
 sys.path.append(REFLOW_DIR)
-sys.path.append(CURRENT_DIR)
 
 import common.utils as utils
 import common.utils.doit as doit_helper
-
-import common.relog as relog
-import common.design_tree as design_tree
 import common.read_sources as read_sources
-
 from common.read_config import Config, locate_config_files
 
 
@@ -33,17 +26,25 @@ class SimType(Enum):
     MIXED = "mix"
 
 
-def create_working_dir(suffix: str):
-    # define working directory
-    os.environ["WORK_DIR"] = utils.normpath(
-        os.path.join(CURRENT_DIR, utils.get_tmp_folder_name(suffix, "./"))
-    )
-    os.makedirs(os.environ["WORK_DIR"], exist_ok=True)
+def set_env_vars():
+    # normalize execution path
+    CURRENT_DIR = utils.normpath(os.getcwd())
+    PROJECT = Config.reflow.get("PROJECT")
+    PROJECT_DIR = CURRENT_DIR[: CURRENT_DIR.find(PROJECT) + len(PROJECT)]
+    # set environment variable to be used by tools
+    env_vars = {
+        "TECH_LIB": Config.technology.get("TECH_LIB"),
+        "PROJECT": PROJECT,
+        "PROJECT_DIR": PROJECT_DIR,
+        "CURRENT_DIR": CURRENT_DIR,
+    }
+    for k, v in env_vars.items():
+        os.environ[k] = v
 
 
 def get_context(use_custom_logger: bool = False):
     # list files and mime types
-    files, params = read_sources.read_from(CURRENT_DIR, no_logger=True)
+    files, params = read_sources.read_from(os.getenv("CURRENT_DIR"), no_logger=True)
     # determine the type of simulation
     digital_only = all((utils.files.is_digital(file) for file, _ in files))
     analog_only = all((utils.files.is_analog(file) for file, _ in files))
@@ -66,18 +67,14 @@ def get_context(use_custom_logger: bool = False):
 
 
 def load_config():
-    global CURRENT_DIR
-    # normalize execution path
-    CURRENT_DIR = utils.normpath(CURRENT_DIR)
     # the default configuration
     default_config = utils.normpath(os.path.join(REFLOW_DIR, "./default.config"))
     # load a local configuration if there is one
-    config_files = [default_config] + locate_config_files(CURRENT_DIR)
+    config_files = [default_config] + locate_config_files(os.getcwd())
     if len(config_files) == 1:
         relog.info("No config file found. Fallback on the default")
     # load the configuration
     Config.read_configs(config_files)
-    Config.set_env({"TECH_LIB": "technology.TECH_LIB", "PLATFORM": "reflow.PLATFORM"})
 
 
 def load_tools():
@@ -93,10 +90,8 @@ def load_tools():
     # ensure unicity of tool loading per context
     for ctx in context:
         context[ctx] = list(set(context[ctx]))
-    # determine the context
-    ctx, files, params = get_context()
-    # load all tools
-    for tool_name in context[ctx.value]:
+
+    def import_tool(tool_name: str):
         # find the tool
         tool_path = utils.tools.find_tool(tool_name)
         sys.path.append(os.path.dirname(tool_path))
@@ -109,26 +104,24 @@ def load_tools():
         for conf in Path(tool_path).rglob("*.config"):
             Config.add_configs(conf)
 
-
-def task_tree():
-    """
-    display hierarchy of the design
-    """
-
-    def tree(task):
-        files, params = read_sources.read_from(os.getcwd(), no_logger=False)
-        design_tree.main(files, params)
-
-    return {"actions": [tree], "title": doit_helper.task_name_as_title, "verbosity": 2}
+    # determine the context
+    ctx, files, params = get_context()
+    # load tools of current context
+    for tool_name in context[ctx.value]:
+        import_tool(tool_name)
+    # load tools associated to the project
+    for tool_name in context.get("prj", []):
+        import_tool(tool_name)
 
 
 if __name__ == "__main__":
-    # load selected tools
+    # load selected tools by project.config
     load_config()
+    set_env_vars()
     load_tools()
 
+    # configure doit
     DOIT_CONFIG = doit_helper.DOIT_CONFIG
-    doit_helper.TaskNumber.ENVS = globals()
 
     # execute task selected
     doit.run(globals())

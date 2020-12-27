@@ -79,7 +79,7 @@ class MetaConfig(type):
     @staticmethod
     def add_configs(config_files: list):
         if isinstance(config_files, (str, PosixPath, WindowsPath)):
-            config_files = [config_files]
+            config_files = [str(config_files)]
 
         for config_file in config_files:
             try:

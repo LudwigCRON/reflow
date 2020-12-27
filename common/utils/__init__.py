@@ -9,4 +9,5 @@ import common.utils.graphs as graphs
 import common.utils.parsers as parsers
 import common.utils.wine as wine
 import common.utils.doit as doit
+import common.utils.db as db
 from common.utils.run import *

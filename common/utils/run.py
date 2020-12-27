@@ -3,46 +3,8 @@
 
 import os
 import sys
+import shutil
 import datetime
-
-
-def get_sources(src, out: str = None, prefix: str = "") -> tuple:
-    """
-    list only the files which corresponds to code from
-    an iterable (file pointer, list, ...)
-    results is saved in either a stream (stdout) or a file
-    Args:
-        src (iterable): information stream containing files' path,
-                        parameters, ...
-        out      (str): path to a file
-                        by default it will be sys.stdout
-        prefix   (str): prefix to place in front of files' path
-    Returns:
-        files   (list): list of files corresponding to code
-        params  (dict): dictionary of parameters and their value
-    """
-    files, params = [], {}
-    # write to a stream
-    if isinstance(out, str):
-        fp_src = open(out, "w+")
-    else:
-        fp_src = sys.stdout
-    # parse all lines
-    for line in src:
-        # code file
-        if ";" in line:
-            path, mime = line.strip().split(";", 2)
-            if out is None:
-                files.append((path, mime))
-            else:
-                fp_src.write("%s%s\n" % (prefix, path))
-        # parameter
-        elif ":" in line:
-            a, b = line.split(":", 2)
-            params[a.strip()] = eval(b.strip())
-    if not fp_src == sys.stdout:
-        fp_src.close()
-    return files, params
 
 
 def normpath(s: str):
@@ -72,6 +34,28 @@ def get_tmp_folder_name(type: str = "sim", prefix: str = "") -> str:
     if "WORK_DIR_PREFIX" in os.environ:
         return "%s.%s_%s" % (prefix, os.environ["WORK_DIR_PREFIX"], type)
     return "%s.tmp_%s" % (prefix, type)
+
+
+def create_working_dir(suffix: str):
+    """
+    create the working directory for the selected task
+    given as a suffix after the WORK_DIR_PREFIX (by default .tmp_)
+    """
+    os.environ["WORK_DIR"] = normpath(get_tmp_folder_name(suffix, "./"))
+    os.makedirs(os.environ["WORK_DIR"], exist_ok=True)
+
+
+def clean_tmp_folder(type: str = "*"):
+    """
+    remove the content and the folder use for all tasks
+    """
+    path = os.getcwd()
+    if "WORK_DIR" in os.environ:
+        path = normpath(os.environ["WORK_DIR"])
+    prefix = os.getenv("WORK_DIR_PREFIX") if "WORK_DIR_PREFIX" in os.environ else ".tmp_"
+    for tmp_folder in Path(path).rglob(prefix + type):
+        if os.path.is_dir(tmp_folder):
+            shutil.rmtree(tmp_folder)
 
 
 # ======== json encoder ========
