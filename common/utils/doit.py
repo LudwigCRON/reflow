@@ -6,6 +6,7 @@ import sys
 import glob
 import doit.task
 import common.utils as utils
+import common.relog as relog
 from doit.reporter import ConsoleReporter
 
 
@@ -69,3 +70,9 @@ def clean_targets(task, dryrun):
             )
             if op:
                 op(tgt)
+
+
+def save_log(task, log_path: str):
+    with open(log_path, "w+") as fp:
+        for line in relog.filter_stream(task.values.get("log")):
+            fp.write(line + "\n")

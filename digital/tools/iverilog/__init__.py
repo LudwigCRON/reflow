@@ -156,13 +156,19 @@ def task_compile():
     if flag_vault.iverilog:
         flags = " ".join(flag_vault.iverilog)
 
-    return {
-        "actions": [
+    def run(task):
+        task.actions.append(
             CmdAction(
                 cmd % (flags, var_vault.EXE, var_vault.SRCS),
-                save_out=var_vault.PARSER_LOG,
+                save_out="log",
             )
-        ],
+        )
+        task.actions.append(
+            PythonAction(doit_helper.save_log, (task, var_vault.PARSER_LOG))
+        )
+
+    return {
+        "actions": [run],
         "file_dep": [var_vault.SRCS],
         "targets": [var_vault.EXE, var_vault.PARSER_LOG],
         "title": doit_helper.task_name_as_title,
@@ -184,14 +190,20 @@ def task_sim():
 
     cmd = "vvp -i %s %s -%s"
 
-    return {
-        "actions": [
+    def run(task):
+        task.actions.append(
             CmdAction(
                 cmd % (var_vault.EXE, flag_vault.vvp, var_vault.WAVE_FORMAT),
-                save_out=var_vault.SIM_LOG,
-            ),
-            PythonAction(move_dump, [var_vault.WAVE, var_vault.WAVE_FORMAT]),
-        ],
+                save_out="log",
+            )
+        )
+        task.actions.append(PythonAction(doit_helper.save_log, (task, var_vault.SIM_LOG)))
+        task.actions.append(
+            PythonAction(move_dump, [var_vault.WAVE, var_vault.WAVE_FORMAT])
+        )
+
+    return {
+        "actions": [run],
         "file_dep": [var_vault.EXE],
         "targets": [var_vault.WAVE],
         "title": doit_helper.task_name_as_title,
