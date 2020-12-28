@@ -1,5 +1,5 @@
 # load first the technology of the project
-read_verilog -lib ${techno.replace(".lib", ".v")}
+read_verilog -lib "${techno.replace(".lib", ".v")}"
 
 verilog_defaults -add -sv -noassert -noassume -norestrict -defer
 
@@ -8,16 +8,14 @@ verilog_defaults -add -I${include}
 % endfor
 
 # then load all synthizeable files
-% for file, type in files:
-    % if type in ["verilog"]:
-read_verilog ${file}
-    % endif
+% for file in (f for f, t in files if t in ["VERILOG"]):
+read_verilog "${file}"
 % endfor
 
 # define top
 hierarchy -check -top ${top_module}
 
-tee -o ${work_dir}/design_checks_rtl.rpt check
+tee -o "${work_dir}/design_checks_rtl.rpt" check
 
 # pre-process and optimize
 proc; opt -fast; fsm; opt -fast; memory; opt
@@ -38,8 +36,8 @@ abc -liberty ${techno}
 opt_clean
 
 # reports
-tee -o ${work_dir}/design_stats.rpt stat
-tee -o ${work_dir}/design_checks_synth.rpt check
+tee -o "${work_dir}/design_stats.rpt" stat
+tee -o "${work_dir}/design_checks_synth.rpt" check
 
 #show ${top_module}
 

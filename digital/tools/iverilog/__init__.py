@@ -97,7 +97,6 @@ def generate_cmd(files_mimes: list = [], params: dict = {}):
 def update_vars():
     var_vault.WORK_DIR = utils.get_tmp_folder()
     var_vault.PROJECT_DIR = os.getenv("PROJECT_DIR")
-    var_vault.VARS_DB = utils.normpath(os.path.join(var_vault.WORK_DIR, "vars.json"))
     var_vault.SRCS = utils.normpath(os.path.join(var_vault.WORK_DIR, "srcs.list"))
     var_vault.EXE = utils.normpath(os.path.join(var_vault.WORK_DIR, "run.vvp"))
     var_vault.PARSER_LOG = utils.normpath(os.path.join(var_vault.WORK_DIR, "parser.log"))
@@ -124,7 +123,7 @@ def task_vars_db():
 
 
 @create_after(executed="vars_db")
-def task_prepare():
+def task_iverilog_prepare():
     """
     create the list of files needed
     list include dirs
@@ -140,13 +139,13 @@ def task_prepare():
         "actions": [run],
         "file_dep": [],
         "targets": [var_vault.SRCS],
-        "title": doit_helper.task_name_as_title,
+        "title": doit_helper.constant_title("Prepare"),
         "clean": [doit_helper.clean_targets],
     }
 
 
-@create_after(executed="prepare")
-def task_compile():
+@create_after(executed="iverilog_prepare")
+def task_iverilog_compile():
     """
     create a VVP executable from verilog/system-verilog inputs
     """
@@ -171,12 +170,12 @@ def task_compile():
         "actions": [run],
         "file_dep": [var_vault.SRCS],
         "targets": [var_vault.EXE, var_vault.PARSER_LOG],
-        "title": doit_helper.task_name_as_title,
+        "title": doit_helper.constant_title("Compile"),
         "clean": [doit_helper.clean_targets],
     }
 
 
-@create_after(executed="compile")
+@create_after(executed="iverilog_compile")
 def task_sim():
     """
     get flags for VVP and launch simulation
@@ -212,7 +211,7 @@ def task_sim():
     }
 
 
-@create_after(executed="compile")
+@create_after(executed="iverilog_compile")
 def task_lint():
     """
     collect parsing operation

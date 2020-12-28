@@ -56,6 +56,13 @@ def task_name_as_title(task):
     return task.name.split(":")[-1].capitalize()
 
 
+def constant_title(s: str):
+    def _(task):
+        return s.capitalize()
+
+    return _
+
+
 def clean_targets(task, dryrun):
     if "WORK_DIR" not in os.environ:
         os.environ["WORK_DIR"] = utils.get_tmp_folder(type="*")

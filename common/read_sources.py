@@ -62,10 +62,11 @@ def resolve_includes(files: list) -> list:
     includes = []
     # for each files which exist really
     for file in files:
-        parent_dir = os.path.dirname(file)
-        if os.path.isfile(file) and parent_dir:
+        sfile = str(file)
+        parent_dir = os.path.dirname(sfile)
+        if os.path.isfile(sfile) and parent_dir:
             # iterate through include statement detected
-            for inc in verilog.find_includes(file):
+            for inc in verilog.find_includes(sfile):
                 # resolve the path and store it
                 includes.append(resolve_path(inc, parent_dir))
     # return the list of include to only
