@@ -47,7 +47,7 @@ def load_raw(filename):
         Returns
             dict with structure described above.
     """
-    filename = utils.normpath(filename)
+    filename = str(filename)
     if not filename.endswith(".raw"):
         for raw in Path(filename).rglob("**/*.raw"):
             if not ".op.raw" in str(raw):

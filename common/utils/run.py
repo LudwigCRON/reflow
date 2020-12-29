@@ -10,7 +10,7 @@ from pathlib import Path
 
 
 def normpath(s: str):
-    return os.path.normpath(s).replace("\\", "/")
+    return os.path.normpath(os.path.abspath(s)).replace("\\", "/")
 
 
 # ==== get working directory ====

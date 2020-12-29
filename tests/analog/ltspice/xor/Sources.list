@@ -1,2 +1,2 @@
 xor_ethz_ch.asc
-POST_SIM=checks.py
+POST_SIM=python checks.py

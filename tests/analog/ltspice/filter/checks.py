@@ -17,17 +17,18 @@ sys.path.append(os.environ["REFLOW"])
 import common.series as series
 import common.relog as relog
 import common.utils as utils
+from analog.tools.parsers import ltspice_raw
 
 
 def Mag(v, n=2, db=True, scale=1.0):
     if db:
-        return 20*np.log10(2*np.abs(v)/n/scale)
-    return 2*np.abs(v)/n/scale
+        return 20 * np.log10(2 * np.abs(v) / n / scale)
+    return 2 * np.abs(v) / n / scale
 
 
 def Deg(v):
-    ang = 180/np.pi*np.arctan2(v.imag, v.real)
-    return np.where(ang > 0, ang, 360+ang)
+    ang = 180 / np.pi * np.arctan2(v.imag, v.real)
+    return np.where(ang > 0, ang, 360 + ang)
 
 
 def main(db):
@@ -35,12 +36,12 @@ def main(db):
     time = db["time"]
 
     n = len(time)
-    Ts = (np.max(time)-np.min(time))/n
-    relog.info("N=%d\tFs=%e" % (n, 1/Ts))
+    Ts = (np.max(time) - np.min(time)) / n
+    relog.info("N=%d\tFs=%e" % (n, 1 / Ts))
 
     # resample since spice is variable timestep
-    Nn = 2**16
-    Ts = (np.max(time)-np.min(time))/Nn
+    Nn = 2 ** 16
+    Ts = (np.max(time) - np.min(time)) / Nn
     time = np.linspace(np.min(time), np.max(time), Nn)
     freq = np.fft.fftfreq(Nn, d=Ts)
 
@@ -74,8 +75,8 @@ def main(db):
     utils.graphs.default_plot_style()
     plt.figure(figsize=(4, 6))
     plt.subplot(311)
-    plt.semilogx(freq, Mag(TFvout, Nn, db_unit, Amax), 'r-')
-    plt.semilogx(freq, Mag(TFvout_ref, Nn, db_unit, Amax), 'b-')
+    plt.semilogx(freq, Mag(TFvout, Nn, db_unit, Amax), "r-")
+    plt.semilogx(freq, Mag(TFvout_ref, Nn, db_unit, Amax), "b-")
     plt.xlabel("Frequency [Hz]")
     plt.ylabel("Magnitude [%s]" % ("dB" if db_unit else "V"))
     plt.grid(True, which="both")
@@ -85,23 +86,29 @@ def main(db):
         plt.axis([1e6, 5e8, 0, 0.6])
 
     plt.subplot(312)
-    plt.semilogx(freq, Deg(TFvout), 'r--')
-    plt.semilogx(freq, Deg(TFvout_ref), 'b--')
+    plt.semilogx(freq, Deg(TFvout), "r--")
+    plt.semilogx(freq, Deg(TFvout_ref), "b--")
     plt.xlabel("Frequency [Hz]")
     plt.ylabel("Magnitude [$^\circ$]")
     plt.grid(True, which="both")
     plt.axis([1e6, 5e8, 0, 360])
 
     plt.subplot(313)
-    plt.plot(db["time"], db["values"].get("V(out)"), 'g-')
-    plt.plot(vout.x * 1e9, vout.y, 'r-')
-    plt.plot(vout_ref.x * 1e9, vout_ref.y, 'b--')
+    plt.plot(db["time"], db["values"].get("V(out)"), "g-")
+    plt.plot(vout.x * 1e9, vout.y, "r-")
+    plt.plot(vout_ref.x * 1e9, vout_ref.y, "b--")
     plt.xlabel("Time [ns]")
-    plt.ylabel("Voltage [V]") 
+    plt.ylabel("Voltage [V]")
     plt.axis([750, 800, 0.5, 2])
 
     plt.tight_layout()
-    plt.savefig("./.tmp_sim/spectrum.svg")
+    plt.savefig("%s/spectrum.svg" % os.getenv("WORK_DIR"))
 
     # return values for regressions
     return warnings, errors
+
+
+if __name__ == "__main__":
+    raw_path = next((f for f in sys.argv[1:] if f != __file__))
+    db = ltspice_raw.load_raw(raw_path)
+    main(db)

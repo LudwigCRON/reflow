@@ -18,7 +18,7 @@ from common.read_config import Config
 def find_tool(name: str):
     spec = "**/tools/%s" % name
     for file in Path(os.environ["REFLOW"]).rglob(spec):
-        return file
+        return str(file)
 
 
 def import_tool(module_name, file, location):
@@ -27,34 +27,3 @@ def import_tool(module_name, file, location):
     sys.modules[module_name] = module
     spec.loader.exec_module(module)
     return module
-
-
-def launch_tool(
-    tool_name: str, action: str, callbacks: tuple = (None, None), *args, **kwargs
-):
-    # find the tool
-    tool_path = find_tool(tool_name)
-    sys.path.append(os.path.dirname(tool_path))
-    # load it and its config
-    tool = import_module(tool_name)
-    for conf in Path(tool_path).rglob("*.config"):
-        Config.add_configs(conf)
-    # check actions are defined
-    task = Config.actions.get(action) if "actions" in Config.data.sections() else "main"
-    # execute it and time it
-    t_start = time.time() * 1000.0
-    pre, post = callbacks
-    warnings_errors = []
-    if pre:
-        warnings_errors.append(pre(*args, **kwargs))
-    warnings_errors.append(getattr(tool, task)(*args, **kwargs))
-    if post:
-        warnings_errors.append(post(*args, **kwargs))
-    t_end = time.time() * 1000.0
-    # store statistics
-    warnings, errors = numpy.nansum(warnings_errors, axis=0)
-    with open(os.path.join(get_tmp_folder(), "./%s.stats" % action), "w+") as fp:
-        fp.write("%s\n" % datetime.datetime.now())
-        fp.write("Warnings: %d\n" % warnings)
-        fp.write("Errors: %d\n" % errors)
-        fp.write("Sim. Time: %d\n" % (t_end - t_start))

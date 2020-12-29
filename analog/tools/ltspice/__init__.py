@@ -1,105 +1,115 @@
 #!/usr/bin/env python3
 # coding: utf-8
 
-import io
 import os
 import sys
-import time
-import shutil
+from pathlib import Path
 
 sys.path.append(os.environ["REFLOW"])
 
 import common.utils as utils
-import common.relog as relog
-import common.executor as executor
+import common.read_sources as read_sources
+import common.utils.doit as doit_helper
+from doit.loader import create_after
+from doit.action import CmdAction, PythonAction
+from common.utils.db import Vault
 
 
-DEFAULT_TMPDIR = utils.get_tmp_folder()
-SIM_LOG = None
+var_vault = Vault()
 
 
-def is_file_timeout(file: str, start: int, max: int = 720, shall_exist: bool = True):
-    file_exists = os.path.exists(file)
-    return time.time() - start < max and (file_exists == shall_exist)
+def update_vars():
+    var_vault.WORK_DIR = utils.get_tmp_folder()
+    var_vault.PROJECT_DIR = os.getenv("PROJECT_DIR")
+    var_vault.ASC = None
 
 
-def simulation_finished(log_file: str):
-    with open(log_file, "r+") as fp:
-        for line in fp:
-            l = line.lower().replace("\x00", "")
-            if "total elapsed time:" in l:
-                return True
-    return False
+update_vars()
 
 
-def watch_log(log_file: str):
-    # remove previous execution log file
-    if os.path.exists(log_file):
-        os.remove(log_file)
-    t_start = time.time()
-    # wait log file created
-    while is_file_timeout(log_file, t_start, max=15, shall_exist=False):
-        time.sleep(1)
-    if not os.path.exists(log_file):
-        relog.error("No simulation log file found")
-        return False
-    # wait the end of the simulation
-    count = 0
-    while not simulation_finished(log_file) and count < 2500:
-        time.sleep(1)
-        count += 1
-    return count < 500
+def task_vars_db():
+    """
+    set needed global variables
+    """
+
+    return {"actions": [(update_vars,)], "title": doit_helper.no_title}
 
 
-def run(asc: str):
-    relog.step("Running simulation")
-    os.makedirs(DEFAULT_TMPDIR, exist_ok=True)
-    # use the appropriate program
-    # depending on the platform
-    log = asc.replace(".asc", ".log")
-    if sys.platform == "darwin":
-        ltspice = "/Applications/LTspice.app/Contents/MacOS/LTspice"
-    elif sys.platform == "unix" or "linux" in sys.platform:
-        ltspice = 'wine64 "%s"' % utils.wine.locate("XVIIx64.exe")
-        # to speed up wine
-        # wine reg add 'HKEY_CURRENT_USER\Software\Wine\Direct3D' /v MaxVersionGL /t REG_DWORD /d 0x30003 /f
-        # winetricks orm=backbuffer glsl=disable for NVIDIA driver
-        # do not allow the WM to decorate window
-        window_path = io.StringIO()
-        executor.sh_exec("winepath -w '%s'" % asc, window_path, NOERR=True, NOOUT=True)
-        asc = utils.normpath(window_path.getvalue().strip())
-    else:
-        ltspice = "XVIIx64.exe"
-    # start the simulation
-    gen = executor.ish_exec(
-        '%s -Run "%s"' % (ltspice, asc), SIM_LOG, MAX_TIMEOUT=300, NOERR=True
-    )
-    proc = next(gen)
-    # watch the log file to determine when
-    # the simulation ends
-    sim_done = watch_log(log)
-    if proc:
-        proc.kill()
-    return 0, not sim_done  # relog.get_stats(SIM_LOG)
+@create_after(executed="vars_db")
+def task__ltspice_sim_prepare():
+    """
+    detect the path of LTspice and
+    normalize the path of the raw file
+    """
+
+    def run(task):
+        # get the top asc file
+        files, params = read_sources.read_from(os.getenv("CURRENT_DIR"), no_logger=True)
+        task.file_dep.update([f for f, m in files])
+        var_vault.ASC = utils.normpath(params.get("TOP_MODULE"))
+        if not var_vault.ASC:
+            sfile = next(
+                (
+                    str(file)
+                    for file, _ in files
+                    if sfile.endswith(".asc") and any(["top" in sfile])
+                )
+            )
+            var_vault.ASC = utils.normpath(os.path.join(os.getenv("CURRENT_DIR"), sfile))
+        # add post sim script support
+        var_vault.POST_SIM = params.get("POST_SIM")
+        # use the appropriate program
+        # depending on the platform
+        if sys.platform == "darwin":
+            var_vault.LTSPICE = "/Applications/LTspice.app/Contents/MacOS/LTspice"
+            return {"asc": var_vault.ASC}
+        elif sys.platform == "unix" or "linux" in sys.platform:
+            var_vault.LTSPICE = 'wine64 "%s"' % utils.wine.locate("XVIIx64.exe")
+            task.actions.append(
+                CmdAction("winepath -w '%s'" % var_vault.ASC, save_out="asc")
+            )
+        else:
+            var_vault.LTSPICE = "XVIIx64.exe"
+            return {"asc": var_vault.ASC}
+
+    return {
+        "actions": [run],
+        "file_dep": [],
+        "title": doit_helper.no_title,
+    }
 
 
-def main(files, params):
-    top = params.get("TOP_MODULE")
-    print(top)
-    if not top:
-        for file in files:
-            print(file)
-            if file.endswidth(".asc"):
-                top = file
-                break
-    if top:
-        stats = run(top)
-        return stats
-    else:
-        relog.error("No asc file detected")
-    return 0, 0
+@create_after(executed="_ltspice_sim_prepare")
+def task_sim():
+    """
+    use the internal ltspice viewer to
+    open saved simulation waveform in raw format
+    """
 
+    def run(task):
+        asc = task.options.get("asc").strip()
+        task.file_dep.update([asc])
+        task.targets.append(asc.replace(".asc", ".log"))
+        task.actions.append(
+            CmdAction(
+                '%s -b -Run "%s"' % (var_vault.LTSPICE, asc),
+                cwd=var_vault.WORK_DIR,
+                shell=True,
+            )
+        )
+        if var_vault.POST_SIM:
+            raw = asc.replace(".asc", ".raw")
+            task.actions.append(
+                CmdAction(
+                    "%s %s" % (" ".join(var_vault.POST_SIM), raw),
+                    cwd=os.getenv("CURRENT_DIR"),
+                    shell=True,
+                )
+            )
 
-if __name__ == "__main__":
-    files, params = utils.get_sources(relog.filter_stream(sys.stdin), None)
-    main(files, params)
+    return {
+        "actions": [run],
+        "title": doit_helper.constant_title("Sim"),
+        "getargs": {"asc": ("_ltspice_sim_prepare", "asc")},
+        "verbosity": 2,
+    }

@@ -3,7 +3,6 @@
 
 import os
 import sys
-
 import matplotlib
 
 matplotlib.use("tkAgg")
@@ -14,6 +13,7 @@ sys.path.append(os.environ["REFLOW"])
 import common.series as series
 import common.relog as relog
 import common.utils as utils
+from analog.tools.parsers import ltspice_raw
 
 
 def main(db):
@@ -41,7 +41,7 @@ def main(db):
         plt.xlabel("Time [ns]")
         plt.ylabel("Voltage [V]")
     plt.tight_layout()
-    plt.savefig("./.tmp_sim/xor.svg")
+    plt.savefig("%s/xor.svg" % os.getenv("WORK_DIR"))
 
     tolerance = (vout_ref.max_value() - vout_ref.min_value()) * 0.01
     for t_change in crossing_times:
@@ -57,3 +57,9 @@ def main(db):
             errors += 1
     # return values for regressions
     return warnings, errors
+
+
+if __name__ == "__main__":
+    raw_path = next((f for f in sys.argv[1:] if f != __file__))
+    db = ltspice_raw.load_raw(raw_path)
+    main(db)
