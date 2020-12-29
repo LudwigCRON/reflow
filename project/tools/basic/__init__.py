@@ -4,6 +4,7 @@
 import os
 import sys
 
+from pathlib import Path
 from functools import lru_cache
 
 import common.utils as utils
@@ -84,7 +85,9 @@ def _batch(batch_path: str):
                         "name": "%s:%s/%s" % (batch_option, os.path.basename(p), rule),
                         "actions": [
                             CmdAction(
-                                "run batch %s" % batch_option, cwd=p, env=os.environ.copy()
+                                "run batch %s" % batch_option,
+                                cwd=os.path.dirname(b),
+                                env=os.environ.copy(),
                             )
                         ],
                         "title": doit_helper.task_name_as_title,
@@ -156,8 +159,13 @@ def task_clean_all():
     remove all working directory
     from the current location
     """
+
+    def remove_doit_db():
+        for db in Path(os.getcwd()).rglob("**/.doit.db"):
+            os.remove(db)
+
     return {
-        "actions": [(utils.clean_tmp_folder,)],
+        "actions": [(utils.clean_tmp_folder,), (remove_doit_db,)],
         "title": doit_helper.no_title,
         "verbosity": 2,
     }
