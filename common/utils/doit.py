@@ -26,12 +26,25 @@ class TaskNumber(ConsoleReporter):
                     self.steps.append(task_name)
                 steps_to_check.extend(task.task_dep)
         self.nb_steps = len(self.steps)
+        self.last_is_subtask = False
 
     def display_step(self, task):
         title = task.title()
         if title and title[0] != "_":
-            self.outstream.write("[%d/%d] %s\n" % (self.current_step, self.nb_steps, title))
-            self.current_step += 1
+            if task.name in self.steps:
+                self.current_step = self.nb_steps - self.steps.index(task.name)
+                self.outstream.write(
+                    "[%d/%d] %s\n" % (self.current_step, self.nb_steps, title)
+                )
+                self.last_is_subtask = False
+            elif self.last_is_subtask:
+                self.current_step += 1
+                self.outstream.write("[-/%d] %s\n" % (self.current_step, title))
+                self.last_is_subtask = True
+            else:
+                self.current_step = 1
+                self.outstream.write("[-/%d] %s\n" % (self.current_step, title))
+                self.last_is_subtask = True
 
     def execute_task(self, task):
         self.display_step(task)

@@ -4,7 +4,6 @@
 import os
 import re
 import sys
-import copy
 import struct
 import argparse
 import numpy as np

@@ -3,7 +3,8 @@
 
 import os
 import sys
-import json
+
+sys.path.append(os.environ["REFLOW"])
 
 import common.utils as utils
 import common.relog as relog
@@ -11,7 +12,6 @@ import common.read_sources as read_sources
 import common.utils.doit as doit_helper
 
 from doit import create_after
-from doit.task import clean_targets
 from doit.action import CmdAction, PythonAction
 from common.read_config import Config
 from common.utils.files import get_type, is_digital
