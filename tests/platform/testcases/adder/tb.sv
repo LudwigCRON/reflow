@@ -1,5 +1,7 @@
 `timescale 1ns/100ps
 
+`include "log.svh"
+
 module tb;
 
 parameter TCLK = 32;

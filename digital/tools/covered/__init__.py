@@ -64,7 +64,7 @@ def generate_cmd(files, params):
     verilog_files = [
         f for f, m in files if m in ["VERILOG", "SYSTEM_VERILOG", "VERILOG_AMS"]
     ]
-    includes = read_sources.resolve_includes(verilog_files)
+    includes = read_sources.resolve_includes(verilog_files, with_pkg=True)
     modules = params["COV_MODULES"] if "COV_MODULES" in params else ["top"]
     instances = verilog.find_instances(params["TOP_MODULE"])
     top_module, *_ = verilog.find_modules(params["TOP_MODULE"])[0]
@@ -98,7 +98,7 @@ def task_covered_prepare():
     """
 
     def run(task):
-        files, params = read_sources.read_from(os.getenv("CURRENT_DIR"), no_logger=False)
+        files, params = read_sources.read_from(os.getenv("CURRENT_DIR"))
         task.file_dep.update([f for f, _ in files])
         task.file_dep.update([var_vault.WAVE])
         task.actions.append(PythonAction(generate_cmd, [files, params]))

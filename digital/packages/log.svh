@@ -20,43 +20,34 @@ COLOR specifies the message color.
 
 */
 
-`timescale 1ns/100ps
-
 module log_service;
-  integer WARN_COUNT = 0;
-  integer ERROR_COUNT = 0;
-  string __xstr__;
+    integer WARN_COUNT = 0;
+    integer ERROR_COUNT = 0;
+    string __xstr__;
 
-  initial begin
-    $timeformat(-9, 1, " ns", 14);
-  end
+    initial begin
+        $timeformat(-9, 1, " ns", 14);
+    end
+
+    task terminate;
+        $write("%c[1;37m",27);
+        if(log_service.ERROR_COUNT > 0 && log_service.WARN_COUNT > 0)
+            $display("Simulation Failed with %0d Errors and %0d Warnings", log_service.ERROR_COUNT, log_service.WARN_COUNT);
+        else if(log_service.ERROR_COUNT > 0)
+            $display("Simulation Failed with %0d Errors", log_service.ERROR_COUNT);
+        else if(log_service.WARN_COUNT > 0)
+            $display("Simulation Failed with %0d Warnings", log_service.WARN_COUNT);
+        else
+            $display("Simulation Successful");
+        $write("%c[0m",27);
+    endtask
 endmodule
 
-`define log_Note(msg) \
-  begin $write("%c[1;32m",27); \
-  $display("NOTE: [%t] %s", $time, msg); \
-  $write("%c[0m",27); end
-
-`define log_Info(msg) \
-  begin $write("%c[0;37m",27); \
-  $info("[%t] %s", $time, msg); \
-  $write("%c[0m",27); end
-
-`define log_Warning(msg) \
-  begin log_service.WARN_COUNT += 1; \
-  $write("%c[1;33m",27); \
-  $warning("[%t] %s", $time, msg); \
-  $write("%c[0m",27); end
-
-`define log_Error(msg) \
-  begin log_service.ERROR_COUNT += 1; \
-  $write("%c[1;31m",27); \
-  $error("[%t] %s", $time, msg); \
-  $write("%c[0m",27); end
-
-`define log_Fatal(msg) \
-  begin $write("%c[1;31m",27); \
-  $fatal(1, "[%t] %s%c[0m", $time, msg, 27); end
+`define log_Note(msg) $display("%c[1;32mNOTE : [%t] %s%c[0m", 27, $time, msg, 27);
+`define log_Info(msg) $display("%c[0;37mINFO :[%t] %s%c[0m", 27, $time, msg, 27);
+`define log_Warning(msg) log_service.WARN_COUNT += 1; $write("%c[1;33m",27); $warning("[%t] %s%c[0m", $time, msg, 27);
+`define log_Error(msg) log_service.ERROR_COUNT += 1; $write("%c[1;31m",27); $error("[%t] %s%c[0m", $time, msg, 27);
+`define log_Fatal(msg) $write("%c[1;31m",27); $fatal(1, "[%t] %s%c[0m", $time, msg, 27);
 
 // use $sformat for compatibility since $sformatf is
 // not always supported
@@ -69,15 +60,4 @@ endmodule
 `define log_WarningF2(template, a, b) begin $sformat(log_service.__xstr__, template, a, b);`log_Warning(log_service.__xstr__) end;
 `define log_ErrorF2(template, a, b)   begin $sformat(log_service.__xstr__, template, a, b);`log_Error(log_service.__xstr__) end;
 
-`define log_Terminate \
-  begin $write("%c[1;37m",27); \
-  if(log_service.ERROR_COUNT > 0 && log_service.WARN_COUNT > 0) \
-    $display("Simulation Failed with %0d Errors and %0d Warnings", log_service.ERROR_COUNT, log_service.WARN_COUNT); \
-  else if(log_service.ERROR_COUNT > 0) \
-    $display("Simulation Failed with %0d Errors", log_service.ERROR_COUNT); \
-  else if(log_service.WARN_COUNT > 0) \
-    $display("Simulation Failed with %0d Warnings", log_service.WARN_COUNT); \
-  else \
-    $display("Simulation Successful"); \
-  $write("%c[0m",27); \
-  $finish; end
+`define log_Terminate log_service.terminate(); $finish;

@@ -97,14 +97,14 @@ def load_tools():
         # find the tool
         tool_path = utils.tools.find_tool(tool_name)
         sys.path.append(os.path.dirname(tool_path))
+        # read config files
+        for conf in Path(tool_path).rglob("*.config"):
+            Config.add_configs(conf)
         # load it and its config
         tool = utils.tools.import_module(tool_name)
         for name in dir(tool):
             if name.startswith("task"):
                 globals()[name] = getattr(tool, name)
-        # read config files
-        for conf in Path(tool_path).rglob("*.config"):
-            Config.add_configs(conf)
 
     # determine the context
     ctx, files, params = get_context()

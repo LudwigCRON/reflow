@@ -1,5 +1,7 @@
 `timescale 1ns/10ps
 
+`include "log.svh"
+
 module tb;
 
 reg         f100m_clk;

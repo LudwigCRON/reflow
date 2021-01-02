@@ -58,7 +58,7 @@ def resolve_path(path: str, base: str = "") -> str:
     return path
 
 
-def resolve_includes(files: list) -> list:
+def resolve_includes(files: list, with_pkg: bool = False) -> list:
     includes = []
     # for each files which exist really
     for file in files:
@@ -72,6 +72,10 @@ def resolve_includes(files: list) -> list:
     # return the list of include to only
     # have non redundante parent directory
     includes = list(set(map(os.path.dirname, includes)))
+    if with_pkg:
+        includes.append(
+            utils.normpath(os.path.join(os.getenv("REFLOW"), "digital/packages"))
+        )
     return [i for i in includes if os.path.exists(i)]
 
 
@@ -367,7 +371,7 @@ def read_sources(filepath: str, graph: dict = {}, depth: int = 0):
     return ans
 
 
-def read_from(sources_list: str, no_logger: bool = False):
+def read_from(sources_list: str, no_logger: bool = True):
     files = []
     parameters = {}
     # check input exist

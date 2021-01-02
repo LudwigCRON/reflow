@@ -46,7 +46,7 @@ def generate_cmd(files_mimes: list = [], params: dict = {}):
     # create the list of sources
     files = [f for f, m in files_mimes]
     mimes = list(set([m for f, m in files_mimes]))
-    inc_dirs = read_sources.resolve_includes(files)
+    inc_dirs = read_sources.resolve_includes(files, with_pkg=True)
     with open(var_vault.SRCS, "w+") as fp:
         # include search pathes
         for inc_dir in inc_dirs:
@@ -131,7 +131,7 @@ def task_iverilog_prepare():
     """
 
     def run(task):
-        files, params = read_sources.read_from(os.getenv("CURRENT_DIR"), no_logger=False)
+        files, params = read_sources.read_from(os.getenv("CURRENT_DIR"))
         task.file_dep.update([f for f, m in files])
         task.actions.append(PythonAction(generate_cmd, [files, params]))
 

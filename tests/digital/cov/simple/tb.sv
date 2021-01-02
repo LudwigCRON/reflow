@@ -19,7 +19,7 @@ end
 initial begin
   #(PERIOD*100);
   clk_period = $realtime/100;
-  $display("Clock period is 31.25 ns");
+  $display("Clock period is %.3f ns", clk_period);
   $finish;
 end
 
