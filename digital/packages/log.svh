@@ -41,13 +41,38 @@ module log_service;
             $display("Simulation Successful");
         $write("%c[0m",27);
     endtask
+
+    task fatal(
+        input string msg
+    );
+        $write("%c[1;31m",27);
+        $fatal(1, "[%t] %s%c[0m", $time, msg, 27); 
+    endtask
+
+    task error(
+        input string msg
+    );
+        ERROR_COUNT += 1;
+        $write("%c[1;31m",27);
+        $error("[%t] %s%c[0m", $time, msg, 27);
+        if(ERROR_COUNT > 100)
+            fatal("More than 100 errors detected");
+    endtask
+
+    task warn(
+        input string msg
+    );
+        WARN_COUNT += 1;
+        $write("%c[1;33m",27);
+        $warning("[%t] %s%c[0m", $time, msg, 27);
+    endtask
 endmodule
 
 `define log_Note(msg) begin $display("%c[1;32mNOTE : [%t] %s%c[0m", 27, $time, msg, 27); end
 `define log_Info(msg) begin $display("%c[0;37mINFO :[%t] %s%c[0m", 27, $time, msg, 27); end
-`define log_Warning(msg) begin log_service.WARN_COUNT += 1; $write("%c[1;33m",27); $warning("[%t] %s%c[0m", $time, msg, 27); end
-`define log_Error(msg) begin log_service.ERROR_COUNT += 1; $write("%c[1;31m",27); $error("[%t] %s%c[0m", $time, msg, 27); end
-`define log_Fatal(msg) begin $write("%c[1;31m",27); $fatal(1, "[%t] %s%c[0m", $time, msg, 27); end
+`define log_Warning(msg) begin log_service.warn(msg); end
+`define log_Error(msg) begin log_service.error(msg); end
+`define log_Fatal(msg) begin log_service.fatal(msg); end
 
 // use $sformat for compatibility since $sformatf is
 // not always supported
