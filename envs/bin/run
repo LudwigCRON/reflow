@@ -17,6 +17,7 @@ sys.path.append(REFLOW_DIR)
 import common.utils as utils
 import common.utils.doit as doit_helper
 import common.read_sources as read_sources
+import common.relog as relog
 from common.read_config import Config, locate_config_files
 
 
