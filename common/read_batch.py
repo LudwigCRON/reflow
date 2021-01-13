@@ -2,7 +2,6 @@
 
 import re
 import os
-import argparse
 import configparser
 
 import common.relog as relog
@@ -195,7 +194,7 @@ def read_batch(batch_file: str):
 def create_batch_sources(batch, rule, rule_path: str):
     sources_list = utils.normpath(os.path.join(rule_path, "Sources.list"))
     with open(sources_list, "w+") as fp:
-        path = batch.get(rule, "__path__")
+        path = utils.normpath(batch.get(rule, "__path__"))
         dedent = "".join(["../"] * (2 + path.count("/")))
         fp.write("%s\n" % utils.normpath(os.path.join(dedent, path)))
         for option in batch.options(rule):
