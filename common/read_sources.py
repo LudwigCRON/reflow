@@ -7,6 +7,7 @@ import traceback
 
 from enum import Enum
 from collections import defaultdict, Iterable
+from typing import OrderedDict
 
 import common.rules
 import common.relog as relog
@@ -429,5 +430,9 @@ def read_from(sources_list: str, no_logger: bool = True):
     if isinstance(graph[-1], Node):
         parameters["TOP_MODULE"] = graph[-1].name
     # normalize path of files accross platform
-    files = [(utils.normpath(f), m) for f, m in files]
+    tmp = OrderedDict()
+    for f, m in files:
+        nf = utils.normpath(f)
+        tmp[nf] = (nf, m)
+    files = list(tmp.values())
     return files, parameters

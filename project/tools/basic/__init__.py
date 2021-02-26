@@ -161,7 +161,8 @@ def task_clean_all():
     """
 
     def remove_doit_db():
-        for db in Path(os.getcwd()).rglob("**/.doit.db"):
+        inspection_path = utils.normpath(os.getcwd())
+        for db in Path(inspection_path).rglob("**/.doit.db"):
             os.remove(db)
 
     return {
