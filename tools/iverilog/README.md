@@ -2,7 +2,7 @@
 https://iverilog.icarus.com
 
 **Tested versions:**
- - iverilog 10.3
+ - iverilog 11
 
 **New:**
 
@@ -133,4 +133,3 @@ It has the benefit of having a report for failure in somes conditions.
 
 - Add support for the `-s [topmodule]`
 - Add support for warning filtering
-- Add WAVE_FORMAT override for user who don't have VCD limitation

@@ -1,0 +1,6 @@
+xcellium:
+  flags:
+  - -clean
+  - -assert
+  - -ial
+  - -LICQUEUE

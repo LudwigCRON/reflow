@@ -1,0 +1,9 @@
+work_dir_prefix: ".work"
+tools:
+- batch
+- iverilog
+- yosys
+- covered
+- gtkwave
+- ltspice
+tools_path: []

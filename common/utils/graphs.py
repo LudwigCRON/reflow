@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 # coding: utf-8
 
-import matplotlib.style
 import matplotlib as mpl
-import matplotlib.pyplot as plt
 
 
 def default_plot_style():

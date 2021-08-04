@@ -2,7 +2,7 @@
 http://gtkwave.sourceforge.net/
 
 **Tested versions:**
- - gtkwave 3.3.104
+ - gtkwave 3.3.104-108
 
 **New:**
 
@@ -20,7 +20,7 @@ On Mac, it is supposed the packaged application is installed.
 found in the current directory, it will be loaded. Otherwise, the VCD
 file is loaded.
 
-## Not Supported
+## List of flags to be specified
 -n, --nocli=[DIRPATH]: use file requester for dumpfile name
 
 -f, --dump=[FILE]: specify dumpfile name
@@ -68,7 +68,3 @@ file is loaded.
 
 -z, --slider-zoom: enable horizontal slider stretch zoom
 no noticeable change in User Experience on touchpad or mouse
-
-## Next Steps
-- Add fastload for VCD
-- Add support for `-c` to speed up loading of large waveform files
