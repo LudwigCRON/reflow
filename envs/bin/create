@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # coding: utf-8
 
-import io
 import os
 import sys
 import pip
@@ -191,33 +190,26 @@ def create_pyenv(env_dir: str = "./"):
 
 
 def default_config():
-    filepath = os.path.join(os.getcwd(), "project.config")
+    filepath = os.path.join(os.getcwd(), "project.yaml")
     if os.path.exists(filepath):
         yes_no = ""
         while yes_no not in ["y", "n", "yes", "no"]:
-            yes_no = input(
-                "do you want to overwrite current project.config ? [y/n] "
-            ).lower()
+            yes_no = input("do you want to overwrite current project.yaml ? [y/n] ").lower()
         if yes_no in ["n", "no"]:
             return
     with open(filepath, "w+") as fp:
         fp.write(
-            """[reflow]
-WORK_DIR_PREFIX     = tmp
-PLATFORM            = reflow
-
-[tools]
-DIG_SYNTHESIS       = yosys
-DIG_LINTER          = iverilog
-DIG_SIMULATOR       = iverilog
-DIG_COVERAGE        = covered
-DIG_WAVEFORM_VIEWER = gtkwave
-ANA_SIMULATOR       = ltspice
-ANA_WAVEFORM_VIEWER = ltspice_view
-ANA_WAVEFORM_PARSER = ltspice_raw
-
-[technology]
-TECH_LIB            = $(CADTOOLS)/yosys/examples/cmos/cmos_cells.lib
+            """project:
+  name: 123456
+work_dir_prefix: ".work"
+tools:
+- batch
+- iverilog
+- yosys
+- covered
+- gtkwave
+- ltspice
+tools_path: []
 """
         )
 
