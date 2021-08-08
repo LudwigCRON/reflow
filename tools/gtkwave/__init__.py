@@ -9,31 +9,31 @@ from pathlib import Path
 sys.path.append(os.environ["REFLOW"])
 
 import common.utils as utils
-import common.relog as relog
 import common.utils.doit as doit_helper
-from common.read_config import Config
+import common.config as config
 from doit.action import CmdAction
 
 
-TOOLS_DIR = utils.normpath(os.path.dirname(os.path.abspath(__file__)))
-TOOLS_CFG = os.path.join(TOOLS_DIR, "tools.config")
-DEFAULT_TMPDIR = utils.get_tmp_folder()
-
-
-def task_view_sim():
+def task_gtkwave_view_sim():
     """
     display digital waveforms
     """
 
+    TOOLS_DIR = utils.normpath(os.path.dirname(os.path.abspath(__file__)))
+    TOOLS_CFG = os.path.join(TOOLS_DIR, "tools.config")
+    DEFAULT_TMPDIR = utils.get_tmp_folder()
+
     def run(task):
         vcd_path, view = None, None
         # search for waveform file
-        for path in Path(DEFAULT_TMPDIR).rglob("**/*.%s" % Config.gtkwave.get("format")):
-            vcd_path = path
+        for path in Path(DEFAULT_TMPDIR).rglob(
+            "**/*.%s" % config.vault.gtkwave.get("format", "vcd")
+        ):
+            vcd_path = str(path)
             break
         # search for gtkwave view
         for path in Path(os.path.dirname(DEFAULT_TMPDIR)).rglob("**/*.gtkw"):
-            view = path
+            view = str(path)
             break
         file_to_read = view if view else vcd_path
         if sys.platform in ["linux", "linux2", "win32"]:
@@ -42,8 +42,10 @@ def task_view_sim():
             cmd = "open -a gtkwave '%s'"
         # register actions
         task.actions.append(CmdAction(cmd % file_to_read))
+        task.file_dep.add(file_to_read)
 
     return {
         "actions": [run],
+        "file_dep": [],
         "title": doit_helper.task_name_as_title,
     }

@@ -1,0 +1,9 @@
+project:
+  name: platform
+tools:
+- batch
+- iverilog
+- covered
+- gtkwave
+- yosys
+

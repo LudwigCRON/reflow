@@ -9,6 +9,7 @@ from numpy.core.fromnumeric import var
 sys.path.append(os.environ["REFLOW"])
 
 import common.utils as utils
+import common.config as config
 import common.verilog as verilog
 import common.read_sources as read_sources
 import common.utils.doit as doit_helper
@@ -16,7 +17,6 @@ import common.utils.doit as doit_helper
 from doit import create_after
 from doit.action import CmdAction, PythonAction
 from common.utils.db import Vault
-from common.read_config import Config
 
 
 var_vault = Vault()
@@ -41,20 +41,13 @@ def update_vars():
     var_vault.COV_LOG = utils.normpath(os.path.join(var_vault.WORK_DIR, "coverage.log"))
     var_vault.DB_LIST = utils.normpath(os.path.join(var_vault.WORK_DIR, "db.list"))
     var_vault.TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
-    if "covered" in Config.data:
-        var_vault.WAVE_FORMAT = Config.covered.get("format")
-        var_vault.WAVE = find_wave(var_vault.WAVE_FORMAT)
+    var_vault.WAVE_FORMAT = config.vault.covered.get("format", "vcd")
+    var_vault.WAVE = find_wave(var_vault.WAVE_FORMAT)
 
 
+# needed to call it during loading of the tool
+# to have correct file dependencies and targets
 update_vars()
-
-
-def task_vars_db():
-    """
-    set needed global variables
-    """
-
-    return {"actions": [(update_vars,)], "title": doit_helper.no_title}
 
 
 def generate_cmd(files, params):
@@ -91,11 +84,11 @@ def generate_cmd(files, params):
             fp.write(_tmp.render_unicode(**data))
 
 
-@create_after(executed="vars_db")
-def task_covered_prepare():
+def task__covered_cov_prepare():
     """
     generated needed score command scripts
     """
+    update_vars()
 
     def run(task):
         files, params = read_sources.read_from(os.getenv("CURRENT_DIR"))
@@ -111,8 +104,7 @@ def task_covered_prepare():
     }
 
 
-@create_after(executed="covered_prepare")
-def task__covered_score():
+def task__covered_cov_score():
 
     for k, script in enumerate(Path(var_vault.WORK_DIR).rglob("score*.cmd")):
         # prepare subtask
@@ -138,8 +130,7 @@ def task__covered_score():
         }
 
 
-@create_after(executed="_covered_score")
-def task_covered_merge():
+def task__covered_cov_merge():
     """
     merge scored databases
     """
@@ -158,14 +149,14 @@ def task_covered_merge():
 
     return {
         "actions": [run],
+        "file_dep": [],
         "targets": [var_vault.DB_LIST],
         "title": doit_helper.constant_title("Merge"),
         "clean": [doit_helper.clean_targets],
     }
 
 
-@create_after(executed="covered_merge")
-def task_cov():
+def task_covered_cov():
     """
     generate reports
     """
@@ -181,6 +172,7 @@ def task_cov():
 
     return {
         "actions": [run],
+        "file_dep": [var_vault.DB_LIST],
         "targets": [var_vault.COV_REPORT],
         "title": doit_helper.constant_title("Reporting"),
         "clean": [doit_helper.clean_targets],

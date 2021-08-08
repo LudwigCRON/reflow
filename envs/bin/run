@@ -5,126 +5,53 @@ import os
 import sys
 import doit
 
-from enum import Enum
-from pathlib import Path
-
 # assume the run utility is placed in the envs/bin/ directory
 ENVBIN_DIR = os.path.dirname(os.path.realpath(__file__))
 # define the path where is stored the flow
 REFLOW_DIR = os.environ["REFLOW"]
 sys.path.append(REFLOW_DIR)
 
+import common.tools
+import common.config
 import common.utils as utils
-import common.utils.doit as doit_helper
-import common.read_sources as read_sources
-import common.relog as relog
-from common.read_config import Config, locate_config_files
+
+# configure doit
+DOIT_CONFIG = utils.doit.DOIT_CONFIG
 
 
-class SimType(Enum):
-    DIGITAL = "dig"
-    ANALOG = "ana"
-    MIXED = "mix"
-
-
-def set_env_vars():
+def set_env_vars(config: utils.db.Vault) -> None:
     # normalize execution path
-    CURRENT_DIR = utils.normpath(os.getcwd())
-    PROJECT = Config.reflow.get("PROJECT")
-    PROJECT_DIR = CURRENT_DIR[: CURRENT_DIR.find(PROJECT) + len(PROJECT)]
+    current_dir = utils.normpath(os.getcwd())
+    project_name = config.get("project", {}).get("name", "")
+    work_dir_prefix = config.get("work_dir_prefix", ".tmp")
+    if project_name in current_dir:
+        project_dir = current_dir[: current_dir.find(project_name) + len(project_name)]
+    else:
+        project_dir = os.path.dirname(common.config.locate_project_yaml(current_dir))
     # set environment variable to be used by tools
     env_vars = {
-        "TECH_LIB": Config.technology.get("TECH_LIB"),
-        "PROJECT": PROJECT,
-        "PROJECT_DIR": PROJECT_DIR,
-        "CURRENT_DIR": CURRENT_DIR,
+        "PROJECT": project_name,
+        "PROJECT_DIR": project_dir,
+        "CURRENT_DIR": current_dir,
+        "WORK_DIR_PREFIX": work_dir_prefix,
     }
     for k, v in env_vars.items():
         os.environ[k] = v
 
 
-def get_context(use_custom_logger: bool = False):
-    # list files and mime types
-    files, params = [], {}
-    if "Sources.list" in os.listdir(os.getenv("CURRENT_DIR")):
-        files, params = read_sources.read_from(os.getenv("CURRENT_DIR"), no_logger=True)
-    # determine the type of simulation
-    digital_only = all((utils.files.is_digital(file) for file, _ in files))
-    analog_only = all((utils.files.is_analog(file) for file, _ in files))
-    if digital_only and not use_custom_logger:
-        files.insert(
-            0,
-            (
-                utils.normpath(os.path.join(REFLOW_DIR, "digital/packages/log.svh")),
-                "SYSTEM_VERILOG",
-            ),
-        )
-    sim_type = (
-        SimType.DIGITAL
-        if digital_only
-        else SimType.ANALOG
-        if analog_only
-        else SimType.MIXED
-    )
-    return (sim_type, files, params)
+def main():
+    # load selected tools by project.yaml
+    common.config.load_config(REFLOW_DIR, os.getcwd())
+    for tool_name in common.config.vault.get("tools", []):
+        common.tools.load_tool(tool_name)
+    set_env_vars(common.config.vault)
 
-
-def load_config():
-    # the default configuration
-    default_config = utils.normpath(os.path.join(REFLOW_DIR, "./default.config"))
-    # load a local configuration if there is one
-    config_files = [default_config] + locate_config_files(os.getcwd())
-    if len(config_files) == 1:
-        relog.info("No config file found. Fallback on the default")
-    # load the configuration
-    Config.read_configs(config_files)
-
-
-def load_tools():
-    # get a list of all tools to be loaded for all context
-    context = {}
-    for id_tool in Config.tools:
-        ctx = id_tool[:3]
-        tool_name = Config.tools.get(id_tool)
-        if ctx in context:
-            context[ctx].append(tool_name)
-        else:
-            context[ctx] = [tool_name]
-    # ensure unicity of tool loading per context
-    for ctx in context:
-        context[ctx] = list(set(context[ctx]))
-
-    def import_tool(tool_name: str):
-        # find the tool
-        tool_path = utils.tools.find_tool(tool_name)
-        sys.path.append(os.path.dirname(tool_path))
-        # read config files
-        for conf in Path(tool_path).rglob("*.config"):
-            Config.add_configs(conf)
-        # load it and its config
-        tool = utils.tools.import_module(tool_name)
-        for name in dir(tool):
-            if name.startswith("task"):
-                globals()[name] = getattr(tool, name)
-
-    # determine the context
-    ctx, files, params = get_context()
-    # load tools of current context
-    for tool_name in context[ctx.value]:
-        import_tool(tool_name)
-    # load tools associated to the project
-    for tool_name in context.get("prj", []):
-        import_tool(tool_name)
-
-
-if __name__ == "__main__":
-    # load selected tools by project.config
-    load_config()
-    set_env_vars()
-    load_tools()
-
-    # configure doit
-    DOIT_CONFIG = doit_helper.DOIT_CONFIG
+    for binding_name in common.config.vault.get("bind", {}):
+        globals()[binding_name] = common.config.vault.bind.get(binding_name)
 
     # execute task selected
     doit.run(globals())
+
+
+if __name__ == "__main__":
+    main()

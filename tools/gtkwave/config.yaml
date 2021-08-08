@@ -1,5 +1,4 @@
-gtkwave:
-  flags:
-  - -F # recode for faster access
-  - -g # allow giga sized vcd file 
-  format: vcd
+flags:
+- -F # recode for faster access
+- -g # allow giga sized vcd file 
+format: vcd

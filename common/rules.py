@@ -11,7 +11,7 @@ import common.utils as utils
 import common.verilog as verilog
 import common.read_sources as read_sources
 
-import digital.tools.libgen as libgen
+import tools.libgen as libgen
 
 
 @utils.rules.apply_for("*_ana.xlsx")

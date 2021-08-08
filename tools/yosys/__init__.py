@@ -8,12 +8,12 @@ from mako.template import Template
 sys.path.append(os.environ["REFLOW"])
 
 import common.utils as utils
+import common.config as config
 import common.utils.doit as doit_helper
 import common.read_sources as read_sources
 
 from doit import create_after
 from common.utils.db import Vault
-from common.read_config import Config
 from doit.action import CmdAction, PythonAction
 
 var_vault = Vault()
@@ -63,28 +63,22 @@ def update_vars():
     var_vault.TEMPLATE_SCRIPT = utils.normpath(
         os.path.join(var_vault.TOOLS_DIR, "script.ys.mako")
     )
-    if "yosys" in Config.data:
-        var_vault.FORMAT = Config.yosys.get("format", "verilog")
+    var_vault.FORMAT = config.vault.yosys.get("format", "verilog")
 
 
+# needed to call it during loading of the tool
+# to have correct file dependencies and targets
 update_vars()
 
 
-def task_vars_db():
-    """
-    set needed global variables
-    """
-
-    return {"actions": [(update_vars,)], "title": doit_helper.no_title}
-
-
-@create_after(executed="vars_db")
-def task_synthesis_prepare():
+def task__yosys_synth_prepare():
     """
     create the list of files needed
     list include dirs
     list parameters and define
     """
+
+    update_vars()
 
     def run(task):
         files, params = read_sources.read_from(os.getenv("CURRENT_DIR"), no_logger=False)
@@ -100,8 +94,7 @@ def task_synthesis_prepare():
     }
 
 
-@create_after(executed="synthesis_prepare")
-def task_synthesis():
+def task_yosys_synth():
 
     return {
         "actions": [

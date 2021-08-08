@@ -1,2 +1,1 @@
-yosys:
-  format: spice
+format: spice

@@ -2,7 +2,7 @@
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
 [*] Sat May 30 20:07:32 2020
 [*]
-[dumpfile] "/home/ludwigcron/Projects/reflow/tests/platform/testcases/adder/.tmp_sim/run.vcd"
+[dumpfile] "./.work_sim/run.vcd"
 [dumpfile_mtime] "Sat May 30 20:06:16 2020"
 [dumpfile_size] 1872241
 [savefile] "/home/ludwigcron/Projects/reflow/tests/platform/testcases/adder/waveform.gtkw"

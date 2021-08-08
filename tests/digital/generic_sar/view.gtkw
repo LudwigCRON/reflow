@@ -2,7 +2,7 @@
 [*] GTKWave Analyzer v3.3.100 (w)1999-2019 BSI
 [*] Fri May  3 16:36:42 2019
 [*]
-[dumpfile] "/Users/ludwigcron/Documents/Projets/generic_sar/tb.vcd"
+[dumpfile] "./.work_sim/run.vcd"
 [dumpfile_mtime] "Fri May  3 16:35:35 2019"
 [dumpfile_size] 912558
 [savefile] "/Users/ludwigcron/Documents/Projets/generic_sar/view.gtkw"

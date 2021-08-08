@@ -3,19 +3,12 @@
 import re
 import os
 import configparser
+from typing import Optional, Tuple
 
 import common.relog as relog
 import common.utils as utils
 
-from enum import Enum
 from collections import Counter
-
-
-class SimType(Enum):
-    SIMULATION = 0
-    COVERAGE = 1
-    LINT = 2
-    ALL = 3
 
 
 def rename_section(config: configparser.ConfigParser, old_name: str, new_name: str):
@@ -98,6 +91,21 @@ def parse_rule(text: str) -> tuple:
         do sim_type on folder_path as label:
     """
     folder, label, sim_type = None, None, None
+
+    def _normalization(folder, label, sim_type) -> Optional[Tuple]:
+        if folder is None:
+            return None
+        if sim_type and "sim" in sim_type.lower():
+            sim_type = "sim"
+        elif sim_type and "cov" in sim_type.lower():
+            sim_type = "cov"
+        elif sim_type and "lint" in sim_type.lower():
+            sim_type = "lint"
+        else:
+            sim_type = "all"
+        label = folder if label is None else label
+        return (folder, label, sim_type)
+
     if text.strip().startswith("do "):
         # ==== second group ====
         # do\s*([\/\w\.]+)      : capture folder_path or sim_type
@@ -109,22 +117,12 @@ def parse_rule(text: str) -> tuple:
         ans = (match.groups() for match in matches)
         for a in ans:
             sim_type, folder, label = a
-            if folder is None:
-                folder = sim_type
-                sim_type = None
-            if folder is not None:
-                sim_type = (
-                    SimType.ALL
-                    if sim_type is None
-                    else SimType.SIMULATION
-                    if "sim" in sim_type.lower()
-                    else SimType.COVERAGE
-                    if "cov" in sim_type.lower()
-                    else SimType.LINT
-                    if "lint" in sim_type.lower()
-                    else SimType.ALL
-                )
-                return (folder, label, sim_type)
+            if folder is None and sim_type is not None:
+                folder, sim_type = sim_type, folder
+            nt = _normalization(folder, label, sim_type)
+            if not nt:
+                continue
+            return nt
     else:
         # ==== first group ====
         # ([\/\w\.]+)   : capture folder_path
@@ -134,21 +132,11 @@ def parse_rule(text: str) -> tuple:
         ans = (match.groups() for match in matches)
         for a in ans:
             folder, label, sim_type = a
-            if folder is not None:
-                sim_type = (
-                    SimType.ALL
-                    if sim_type is None
-                    else SimType.SIMULATION
-                    if "sim" in sim_type.lower()
-                    else SimType.COVERAGE
-                    if "cov" in sim_type.lower()
-                    else SimType.LINT
-                    if "lint" in sim_type.lower()
-                    else SimType.ALL
-                )
-                label = folder if label is None else label
-                return (folder, label, sim_type)
-    return (None, None, SimType.ALL)
+            nt = _normalization(folder, label, sim_type)
+            if not nt:
+                continue
+            return nt
+    return (None, None, "all")
 
 
 def read_batch(batch_file: str):

@@ -3,7 +3,6 @@
 
 import os
 import sys
-from pathlib import Path
 
 sys.path.append(os.environ["REFLOW"])
 
@@ -11,7 +10,7 @@ import common.utils as utils
 import common.read_sources as read_sources
 import common.utils.doit as doit_helper
 from doit.loader import create_after
-from doit.action import CmdAction, PythonAction
+from doit.action import CmdAction
 from common.utils.db import Vault
 
 
@@ -27,33 +26,22 @@ def update_vars():
 update_vars()
 
 
-def task_vars_db():
-    """
-    set needed global variables
-    """
-
-    return {"actions": [(update_vars,)], "title": doit_helper.no_title}
-
-
-@create_after(executed="vars_db")
 def task__ltspice_sim_prepare():
     """
-    detect the path of LTspice and
-    normalize the path of the raw file
+    detect the path of LTspice and asc files
+    and normalize the path of the raw file
     """
+
+    update_vars()
 
     def run(task):
         # get the top asc file
         files, params = read_sources.read_from(os.getenv("CURRENT_DIR"), no_logger=True)
-        task.file_dep.update([f for f, m in files])
+        task.file_dep.update([f for f, _ in files])
         var_vault.ASC = utils.normpath(params.get("TOP_MODULE"))
         if not var_vault.ASC:
             sfile = next(
-                (
-                    str(file)
-                    for file, _ in files
-                    if sfile.endswith(".asc") and any(["top" in sfile])
-                )
+                (str(file) for file, _ in files if file.endswith(".asc") and "top" in file)
             )
             var_vault.ASC = utils.normpath(os.path.join(os.getenv("CURRENT_DIR"), sfile))
         # add post sim script support
@@ -62,7 +50,6 @@ def task__ltspice_sim_prepare():
         # depending on the platform
         if sys.platform == "darwin":
             var_vault.LTSPICE = "/Applications/LTspice.app/Contents/MacOS/LTspice"
-            return {"asc": var_vault.ASC}
         elif sys.platform == "unix" or "linux" in sys.platform:
             var_vault.LTSPICE = 'wine64 "%s"' % utils.wine.locate("XVIIx64.exe")
             task.actions.append(
@@ -70,7 +57,7 @@ def task__ltspice_sim_prepare():
             )
         else:
             var_vault.LTSPICE = "XVIIx64.exe"
-            return {"asc": var_vault.ASC}
+        return {"asc": var_vault.ASC}
 
     return {
         "actions": [run],
@@ -79,30 +66,31 @@ def task__ltspice_sim_prepare():
     }
 
 
-@create_after(executed="_ltspice_sim_prepare")
-def task_sim():
+def task_ltspice_sim():
     """
-    use the internal ltspice viewer to
-    open saved simulation waveform in raw format
+    execute an LTSpice simulation in batch mode
     """
 
     def run(task):
-        asc = task.options.get("asc").strip()
-        task.file_dep.update([asc])
-        task.targets.append(asc.replace(".asc", ".log"))
+        asc_path = var_vault.ASC
+        if task.options.get("asc"):
+            asc_path = task.options.get("asc").strip()
+        task.file_dep.update([var_vault.ASC])
+        task.targets.append(var_vault.ASC.replace(".asc", ".log"))
         task.actions.append(
             CmdAction(
-                '%s -b -Run "%s"' % (var_vault.LTSPICE, asc),
+                '%s -b -Run "%s"' % (var_vault.LTSPICE, asc_path),
                 cwd=var_vault.WORK_DIR,
                 shell=True,
             )
         )
         if var_vault.POST_SIM:
-            raw = asc.replace(".asc", ".raw")
+            raw = var_vault.ASC.replace(".asc", ".raw")
+            sim_dir = utils.normpath(os.path.dirname(var_vault.ASC))
             task.actions.append(
                 CmdAction(
-                    "%s %s" % (" ".join(var_vault.POST_SIM), raw),
-                    cwd=os.getenv("CURRENT_DIR"),
+                    "%s '%s'" % (" ".join(var_vault.POST_SIM), raw),
+                    cwd=sim_dir,
                     shell=True,
                 )
             )
@@ -110,6 +98,7 @@ def task_sim():
     return {
         "actions": [run],
         "title": doit_helper.constant_title("Sim"),
-        "getargs": {"asc": ("_ltspice_sim_prepare", "asc")},
+        "getargs": {"asc": ("ltspice_sim_prepare", "asc")},
+        "task_dep": ["ltspice_sim_prepare"],
         "verbosity": 2,
     }

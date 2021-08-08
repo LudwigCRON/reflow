@@ -4,18 +4,17 @@
 import os
 import sys
 
-sys.path.append(os.environ["REFLOW"])
-
 import common.utils as utils
 import common.relog as relog
 import common.read_sources as read_sources
 import common.utils.doit as doit_helper
 
-from doit import create_after
+from mako import exceptions
+from mako.template import Template
 from doit.action import CmdAction, PythonAction
-from common.read_config import Config
-from common.utils.files import get_type, is_digital
+from common.utils.files import is_digital, is_simulable
 from common.utils.db import Vault
+import common.config as config
 
 
 var_vault = Vault()
@@ -31,12 +30,11 @@ def transform_flags(flags: str) -> str:
     }
     for output, inputs in matches.items():
         for i in inputs:
-            if i in flags:
-                flags = flags.replace(i, output)
+            flags = flags.replace(i, output)
     # generate a string
     flags = [
         flag
-        for flag in flags.split(" ")
+        for flag in flags.split()
         if not flag.startswith("-g") and not flag.startswith("-W")
     ]
     return " ".join(flags)
@@ -44,29 +42,43 @@ def transform_flags(flags: str) -> str:
 
 def generate_cmd(files_mimes: list = [], params: dict = {}):
     # create the list of sources
-    files = [f for f, m in files_mimes]
-    mimes = list(set([m for f, m in files_mimes]))
-    inc_dirs = read_sources.resolve_includes(files, with_pkg=True)
-    with open(var_vault.SRCS, "w+") as fp:
-        # include search pathes
-        for inc_dir in inc_dirs:
-            fp.write("+incdir+%s\n" % inc_dir)
-        fp.write("+incdir+%s\n" % var_vault.PROJECT_DIR)
-        # time scale
-        if "TIMESCALE" in params:
-            fp.write("+timescale+%s\n" % params["TIMESCALE"])
-        # iverilog flags
-        if "SIM_FLAGS" in params:
-            for flag in params["SIM_FLAGS"]:
-                tf = transform_flags(flag)
-                if tf and tf[:2] not in ("-m", "-M"):
-                    fp.write("%s\n" % tf)
-        # list of files
-        for file in files:
-            if is_digital(file) and get_type(file) not in ["ASSERTIONS", "LIBERTY"]:
-                fp.write("%s\n" % file)
+    files = [f for f, _ in files_mimes if is_digital(f) and is_simulable(f, no_assert=True)]
+    mimes = list(set([m for _, m in files_mimes]))
+    # aggregate flags
+    flags = []
+    for flag in params.get("SIM_FLAGS", []):
+        tf = transform_flags(flag)
+        if tf and tf[:2] not in ["-m", "-M"]:
+            flags.append(tf)
+    # create filling data for template
+    template_data = {
+        "files": files,
+        "include_dirs": [
+            p for p in read_sources.resolve_includes(files, with_pkg=True) if p
+        ],
+        "timescale": params.get("TIMESCALE"),
+        "flags": list(set(flags)),
+    }
+    if var_vault.PROJECT_DIR:
+        template_data["include_dirs"].append(var_vault.PROJECT_DIR)
+    if config.vault.iverilog.get("reflow_log", False):
+        template_data["include_dirs"].append(
+            utils.normpath(os.path.join(os.environ["REFLOW"], "packages"))
+        )
+    # populate the template
+    try:
+        tmpl = Template(
+            filename=utils.normpath(
+                os.path.join(os.path.dirname(__file__), "./templates/iverilog.args.mako")
+            )
+        )
+        with open(var_vault.SRCS, "w+") as fp:
+            fp.write(tmpl.render(**template_data))
+    except:
+        print(exceptions.text_error_template().render())
+
     # compute iverilog flags
-    flags = Config.iverilog.get("flags").split()
+    flags = config.vault.iverilog.get("flags", [])
     flags.extend(
         [
             "-gverilog-ams"
@@ -101,66 +113,55 @@ def update_vars():
     var_vault.EXE = utils.normpath(os.path.join(var_vault.WORK_DIR, "run.vvp"))
     var_vault.PARSER_LOG = utils.normpath(os.path.join(var_vault.WORK_DIR, "parser.log"))
     var_vault.SIM_LOG = utils.normpath(os.path.join(var_vault.WORK_DIR, "sim.log"))
-    if "iverilog" in Config.data:
-        var_vault.WAVE_FORMAT = Config.iverilog.get("format")
-        var_vault.WAVE = utils.normpath(
-            os.path.join(var_vault.WORK_DIR, "run.%s" % var_vault.WAVE_FORMAT)
-        )
-    else:
-        var_vault.WAVE_FORMAT = "vcd"
-        var_vault.WAVE = utils.normpath(os.path.join(var_vault.WORK_DIR, "run.vcd"))
+    var_vault.WAVE_FORMAT = config.vault.iverilog.get("format")
+    var_vault.WAVE = utils.normpath(
+        os.path.join(var_vault.WORK_DIR, "run.%s" % var_vault.WAVE_FORMAT)
+    )
+    flag_vault.iverilog = config.vault.iverilog.get("flags", [])
 
 
+# needed to call it during loading of the tool
+# to have correct file dependencies and targets
 update_vars()
 
 
-def task_vars_db():
-    """
-    set needed global variables
-    """
-
-    return {"actions": [(update_vars,)], "title": doit_helper.no_title}
-
-
-@create_after(executed="vars_db")
-def task_iverilog_prepare():
+def task__iverilog_sim_prepare():
     """
     create the list of files needed
     list include dirs
     list parameters and define
     """
 
-    def run(task):
+    update_vars()
+    try:
         files, params = read_sources.read_from(os.getenv("CURRENT_DIR"))
-        task.file_dep.update([f for f, m in files])
-        task.actions.append(PythonAction(generate_cmd, [files, params]))
 
-    return {
-        "actions": [run],
-        "file_dep": [],
-        "targets": [var_vault.SRCS],
-        "title": doit_helper.constant_title("Prepare"),
-        "clean": [doit_helper.clean_targets],
-    }
+        return {
+            "actions": [PythonAction(generate_cmd, [files, params])],
+            "file_dep": [f for f, _ in files],
+            "targets": [var_vault.SRCS],
+            "title": doit_helper.constant_title("Prepare"),
+            "clean": [doit_helper.clean_targets],
+            "verbosity": 2,
+        }
+    except FileNotFoundError as e:
+        # do not print error if cleaning/batch/list/...
+        if "sim" in sys.argv:
+            relog.error("'%s' not found" % (e.filename or e.filename2))
+            exit(1)
+        return {"actions": None}
 
 
-@create_after(executed="iverilog_prepare")
-def task_iverilog_compile():
+def task__iverilog_sim_compile():
     """
     create a VVP executable from verilog/system-verilog inputs
     """
 
-    cmd = "iverilog %s -o %s -c %s"
-    flags = ""
-    if flag_vault.iverilog:
-        flags = " ".join(flag_vault.iverilog)
-
     def run(task):
+        cmd = "iverilog %s -o %s -c %s"
+        flags = " ".join(flag_vault.get("iverilog", []))
         task.actions.append(
-            CmdAction(
-                cmd % (flags, var_vault.EXE, var_vault.SRCS),
-                save_out="log",
-            )
+            CmdAction(cmd % (flags, var_vault.EXE, var_vault.SRCS), save_out="log"),
         )
         task.actions.append(
             PythonAction(doit_helper.save_log, (task, var_vault.PARSER_LOG))
@@ -172,27 +173,26 @@ def task_iverilog_compile():
         "targets": [var_vault.EXE, var_vault.PARSER_LOG],
         "title": doit_helper.constant_title("Compile"),
         "clean": [doit_helper.clean_targets],
+        "uptodate": [False],
     }
 
 
-@create_after(executed="iverilog_compile")
-def task_sim():
+def task_iverilog_sim():
     """
     get flags for VVP and launch simulation
     """
-    # move the dumpfile to TMPDIR
+    # move the dumpfile to WORK_DIR
     def move_dump(wave, wave_format):
         if os.path.exists(wave):
             os.remove(wave)
         if os.path.exists("./dump.%s" % wave_format):
             os.rename("./dump.%s" % wave_format, wave)
 
-    cmd = "vvp -i %s %s -%s"
-
     def run(task):
+        cmd = "vvp -i %s %s -%s"
         task.actions.append(
             CmdAction(
-                cmd % (var_vault.EXE, flag_vault.vvp, var_vault.WAVE_FORMAT),
+                cmd % (var_vault.EXE, flag_vault.get("vvp"), var_vault.WAVE_FORMAT),
                 save_out="log",
             )
         )
@@ -204,15 +204,14 @@ def task_sim():
     return {
         "actions": [run],
         "file_dep": [var_vault.EXE],
-        "targets": [var_vault.WAVE],
+        "targets": [var_vault.WAVE, var_vault.SIM_LOG],
         "title": doit_helper.task_name_as_title,
         "clean": [doit_helper.clean_targets],
         "verbosity": 2,
     }
 
 
-@create_after(executed="iverilog_compile")
-def task_lint():
+def task_iverilog_lint():
     """
     collect parsing operation
     """

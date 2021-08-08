@@ -38,3 +38,7 @@ def is_digital(filepath: str) -> bool:
 
 def is_analog(filepath: str) -> bool:
     return get_type(filepath) in ["ANALOG"]
+
+
+def is_simulable(filepath: str, no_assert: bool = False) -> bool:
+    return get_type(filepath) not in ["LIBERTY", None if no_assert else "ASSERTIONS", None]

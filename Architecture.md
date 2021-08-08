@@ -51,12 +51,12 @@ It is an array of the name of the folder of a given
 package. The lookup path is by default the folder tools
 in the installation directory of Reflow, `$REFLOW/tools`.
 For the sake of conveniance, the user can specify other
-lookup paths via `tools_path`. This parameter is an array
+lookup paths via `tools_paths`. This parameter is an array
 of lookup path.
 
 In the case a tool called **test** is found in
 `$REFLOW/tools`, and in one of the specified 
-`tools_path`, the tool in the installation directory of
+`tools_paths`, the tool in the installation directory of
 Reflow prevail. For an similar tool's name between
 two different lookup paths, the first specified prevail.
 
@@ -86,7 +86,7 @@ tools:
 - yosys
 - covered
 - verible
-tools_path: # path to lookup for tools
+tools_paths: # path to lookup for tools
 - $PROJECT/tools/
 bind:
   lint: task_verible_lint
@@ -107,15 +107,14 @@ common parameters:
 
 A typical `config.yaml` file is
 ```yaml
-iverilog:
-  format: vcd
-  flags:
-    - -g2012
-    - -grelative-include
-    - -Wanachronisms
-    - -Wimplicit
-    - -Wimplicit-dimensions
-    - -Wportbind
+format: vcd
+flags:
+- -g2012
+- -grelative-include
+- -Wanachronisms
+- -Wimplicit
+- -Wimplicit-dimensions
+- -Wportbind
 ```
 
 Other parameters used by the tool inside the Reflow
@@ -141,7 +140,7 @@ to provide at least:
 - `config.md` describing the possible configurations
   
 Therefore it is common to see the following arborescence
-for a given lookup `tools_path`:
+for a given lookup `tools_paths`:
 ```
 tools/
     tool1/

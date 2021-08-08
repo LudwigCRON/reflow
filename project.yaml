@@ -6,4 +6,4 @@ tools:
 - covered
 - gtkwave
 - ltspice
-tools_path: []
+tools_paths: []

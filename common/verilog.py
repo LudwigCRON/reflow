@@ -343,9 +343,7 @@ def find_timescale(filepath: str):
     find timescale and return the step and accuracy
     """
     ans = []
-    PATTERN = (
-        r"timescale\s*(?:([\d\.]+)\s*([umnpf]?s))\s*(?:\\|\/)(?:([\d\.]+)\s*([umnpf]?s))"
-    )
+    PATTERN = r"timescale\s*((?:[\d\.]+)\s*(?:[umnpf]?s))\s*(?:\\|\/)((?:[\d\.]+)\s*(?:[umnpf]?s))"
     with open(filepath, "r+") as fp:
         for line in fp.readlines():
             ans.extend(re.findall(PATTERN, line))

@@ -13,7 +13,7 @@ sys.path.append(os.environ["REFLOW"])
 import common.series as series
 import common.relog as relog
 import common.utils as utils
-from analog.tools.parsers import ltspice_raw
+from packages.parsers import ltspice_raw
 
 
 def main(db):

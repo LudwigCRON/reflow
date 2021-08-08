@@ -2,7 +2,6 @@
 # coding: utf-8
 
 import os
-import sys
 import shutil
 import datetime
 
@@ -24,7 +23,7 @@ def get_tmp_folder(type: str = "sim") -> str:
         return normpath(os.environ["WORK_DIR"])
     if "WORK_DIR_PREFIX" in os.environ:
         return normpath(
-            os.path.join(os.getcwd(), ".%s_%s" % (os.environ["WORK_DIR_PREFIX"], type))
+            os.path.join(os.getcwd(), "%s_%s" % (os.environ["WORK_DIR_PREFIX"], type))
         )
     return normpath(os.path.join(os.getcwd(), ".tmp_%s" % type))
 
@@ -34,7 +33,7 @@ def get_tmp_folder_name(type: str = "sim", prefix: str = "") -> str:
     get folder name for a given simulation type
     """
     if "WORK_DIR_PREFIX" in os.environ:
-        return "%s.%s_%s" % (prefix, os.environ["WORK_DIR_PREFIX"], type)
+        return "%s%s_%s" % (prefix, os.environ["WORK_DIR_PREFIX"], type)
     return "%s.tmp_%s" % (prefix, type)
 
 

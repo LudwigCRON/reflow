@@ -7,7 +7,8 @@ import sys
 import matplotlib
 import numpy as np
 import scipy
-from scipy import signal
+import scipy.fft
+import scipy.signal
 
 matplotlib.use("tkAgg")
 import matplotlib.pyplot as plt
@@ -17,7 +18,7 @@ sys.path.append(os.environ["REFLOW"])
 import common.series as series
 import common.relog as relog
 import common.utils as utils
-from analog.tools.parsers import ltspice_raw
+from packages.parsers import ltspice_raw
 
 
 def Mag(v, n=2, db=True, scale=1.0):
@@ -62,10 +63,10 @@ def main(db):
     relog.info("kaiser(beta=%.3f) ScaleAmp=%.3f" % (beta, Amax))
 
     # read V(out), V(out_ref)
-    tmp = signal.resample(db["values"].get("V(out)"), Nn)
+    tmp = scipy.signal.resample(db["values"].get("V(out)"), Nn)
     vout = series.Series(time, tmp)
 
-    tmp = signal.resample(db["values"].get("V(out_ref)"), Nn)
+    tmp = scipy.signal.resample(db["values"].get("V(out_ref)"), Nn)
     vout_ref = series.Series(time, tmp)
 
     # calculate the fft

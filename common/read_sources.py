@@ -74,9 +74,7 @@ def resolve_includes(files: list, with_pkg: bool = False) -> list:
     # have non redundante parent directory
     includes = list(set(map(os.path.dirname, includes)))
     if with_pkg:
-        includes.append(
-            utils.normpath(os.path.join(os.getenv("REFLOW"), "digital/packages"))
-        )
+        includes.append(utils.normpath(os.path.join(os.getenv("REFLOW"), "packages")))
     return [i for i in includes if os.path.exists(i)]
 
 
@@ -380,17 +378,11 @@ def read_from(sources_list: str, no_logger: bool = True):
         raise Exception("%s does not exist" % sources_list)
     # add the log package file
     if not no_logger:
-        log_inc = os.path.join(os.environ["REFLOW"], "digital/packages/log.svh")
+        log_inc = os.path.join(os.environ["REFLOW"], "packages/log.svh")
         files.append((log_inc, utils.files.get_type(log_inc)))
     # store the list of files
     graph = {}
-    try:
-        graph = read_sources(sources_list, {})
-    except FileNotFoundError as e:
-        relog.error("'%s' not found" % (e.filename or e.filename2))
-        exit(1)
-    except Exception:
-        traceback.print_exc(file=sys.stderr)
+    graph = read_sources(sources_list, {})
     # display the list of files and their mime-type
     for node in graph:
         if isinstance(node, Node):
@@ -403,29 +395,27 @@ def read_from(sources_list: str, no_logger: bool = True):
     for node in graph[::-1]:
         if isinstance(node, Node):
             parameters.update(node.params)
-    # define the most accurate timescale define
-    min_ts = (1, "s", 1, "ms")
+    # define the most accurate timescale define with a default 1s/1ms
+    min_ts = (1, 1e-3)
     for node in graph:
         if not isinstance(node, Node):
             continue
         if not utils.files.is_digital(node.name):
             continue
-        ts = verilog.find_timescale(node.name)
-        if ts:
-            sn, su, rn, ru = ts[0]
-            if utils.parsers.evaluate_eng_unit(sn, su) < utils.parsers.evaluate_eng_unit(
-                *min_ts[0:2]
-            ):
-                min_ts = (sn, su, *min_ts[2:4])
-
-            if utils.parsers.evaluate_eng_unit(rn, ru) < utils.parsers.evaluate_eng_unit(
-                *min_ts[2:4]
-            ):
-                min_ts = (*min_ts[0:2], rn, ru)
-    if utils.parsers.evaluate_eng_unit(*min_ts[0:2]) == 1.0:
+        for ts in verilog.find_timescale(node.name):
+            s = utils.parsers.parse_eng_unit(ts[0], "s")
+            r = utils.parsers.parse_eng_unit(ts[1], "s")
+            if s < min_ts[0]:
+                min_ts = (s, min_ts[1])
+            if r < min_ts[1]:
+                min_ts = (min_ts[0], r)
+    # When no timescale definition are found set 1ns/100ps
+    if min_ts[0] == 1.0:
         parameters["TIMESCALE"] = "1ns/100ps"
     else:
-        parameters["TIMESCALE"] = "%s%s/%s%s" % min_ts
+        ss = utils.parsers.eng_str(min_ts[0])
+        sr = utils.parsers.eng_str(min_ts[1])
+        parameters["TIMESCALE"] = f"{ss[0]:.0f}{ss[1]}s/{sr[0]:.0f}{sr[1]}s"
     # define the top module
     if isinstance(graph[-1], Node):
         parameters["TOP_MODULE"] = graph[-1].name

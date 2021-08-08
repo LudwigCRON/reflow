@@ -1,11 +1,11 @@
-iverilog:
-  flags:
-    - -g2012
-    - -grelative-include
-    - -Wanachronisms
-    - -Wimplicit
-    - -Wimplicit-dimensions
-    - -Wportbind
-    - -Wselect-range
-    - -Wsensitivity-entire-array
-  format: vcd
+flags:
+- -g2012
+- -grelative-include
+- -Wanachronisms
+- -Wimplicit
+- -Wimplicit-dimensions
+- -Wportbind
+- -Wselect-range
+- -Wsensitivity-entire-array
+format: vcd
+reflow_log: True

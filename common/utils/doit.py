@@ -2,9 +2,7 @@
 # coding: utf-8
 
 import os
-import sys
 import glob
-import doit.task
 import common.utils as utils
 import common.relog as relog
 from doit.reporter import ConsoleReporter
@@ -12,7 +10,8 @@ from doit.reporter import ConsoleReporter
 
 class TaskNumber(ConsoleReporter):
     def initialize(self, tasks, selected_tasks):
-        utils.create_working_dir(selected_tasks[-1])
+        if selected_tasks:
+            utils.create_working_dir(selected_tasks[-1])
         # get step order
         self.steps, self.current_step = [], 1
         steps_to_check = [t for t in selected_tasks]
@@ -54,7 +53,7 @@ class TaskNumber(ConsoleReporter):
 
 
 DOIT_CONFIG = {
-    "backend": "json",
+    "backend": "sqlite3",
     "reporter": TaskNumber,
     "action_string_formatting": "both",
     "cleanforget": True,
@@ -93,6 +92,8 @@ def clean_targets(task, dryrun):
 
 
 def save_log(task, log_path: str):
+    if task is None:
+        return
     with open(log_path, "w+") as fp:
         for line in relog.filter_stream(task.values.get("log")):
             fp.write(line + "\n")

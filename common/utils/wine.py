@@ -3,6 +3,7 @@
 
 import os
 
+import common.relog as relog
 from pathlib import Path
 
 
@@ -16,4 +17,7 @@ def locate(program: str):
     for file in Path(wineprefix).rglob("**/*.exe"):
         if program in str(file):
             ans.append(str(file))
+    if not ans:
+        relog.error(f"Check Wine and '{program}' are installed")
+        exit(2)
     return ans[-1]
