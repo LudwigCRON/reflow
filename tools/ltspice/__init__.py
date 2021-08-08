@@ -51,7 +51,10 @@ def task__ltspice_sim_prepare():
         if sys.platform == "darwin":
             var_vault.LTSPICE = "/Applications/LTspice.app/Contents/MacOS/LTspice"
         elif sys.platform == "unix" or "linux" in sys.platform:
-            var_vault.LTSPICE = 'wine64 "%s"' % utils.wine.locate("XVIIx64.exe")
+            var_vault.LTSPICE = (
+                'WINEDEBUG=fixme-all,warn-all wine64 "%s"'
+                % utils.wine.locate("XVIIx64.exe")
+            )
             task.actions.append(
                 CmdAction("winepath -w '%s'" % var_vault.ASC, save_out="asc")
             )
@@ -98,6 +101,34 @@ def task_ltspice_sim():
     return {
         "actions": [run],
         "title": doit_helper.constant_title("Sim"),
+        "getargs": {"asc": ("ltspice_sim_prepare", "asc")},
+        "task_dep": ["ltspice_sim_prepare"],
+        "verbosity": 2,
+    }
+
+
+def task_ltspice_view_sim():
+    """
+    open saved simulation waveform in LTSpice embedded viewer
+    """
+
+    def run(task):
+        asc_path = var_vault.ASC
+        if task.options.get("asc"):
+            asc_path = task.options.get("asc").strip()
+        raw_path = asc_path.replace(".asc", ".raw")
+        task.file_dep.update([var_vault.ASC.replace(".asc", ".raw")])
+        task.actions.append(
+            CmdAction(
+                "%s '%s'" % (var_vault.LTSPICE, raw_path),
+                cwd=var_vault.WORK_DIR,
+                shell=True,
+            )
+        )
+
+    return {
+        "actions": [run],
+        "title": doit_helper.constant_title("View"),
         "getargs": {"asc": ("ltspice_sim_prepare", "asc")},
         "task_dep": ["ltspice_sim_prepare"],
         "verbosity": 2,
