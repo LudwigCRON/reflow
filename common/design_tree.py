@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-import os
-import sys
+# coding: utf-8
 
-import common.relog as relog
-import common.utils as utils
+import os
+
 import common.verilog as verilog
 
 
@@ -16,7 +15,7 @@ def main(files, params):
     for file, mime in files:
         f = file.strip()
         print("\n%s: " % file)
-        print(''.join(['-'] * (len(file) + 1)))
+        print("".join(["-"] * (len(file) + 1)))
         for m in verilog.find_modules(f):
             module = verilog.Module(m[0])
             if m[1]:
@@ -34,8 +33,3 @@ def main(files, params):
             print(instance)
         for include in verilog.find_includes(f):
             print("H ", include)
-
-
-if __name__ == "__main__":
-    files, params = utils.get_sources(relog.filter_stream(sys.stdin), None)
-    main(files, params)

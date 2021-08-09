@@ -61,10 +61,6 @@ def generate_cmd(files_mimes: list = [], params: dict = {}):
     }
     if var_vault.PROJECT_DIR:
         template_data["include_dirs"].append(var_vault.PROJECT_DIR)
-    if config.vault.iverilog.get("reflow_log", False):
-        template_data["include_dirs"].append(
-            utils.normpath(os.path.join(os.environ["REFLOW"], "packages"))
-        )
     # populate the template
     try:
         tmpl = Template(
@@ -158,13 +154,13 @@ def task__iverilog_sim_compile():
     """
 
     def run(task):
-        cmd = "iverilog %s -o %s -c %s"
+        cmd = "iverilog %s -o '%s' -c '%s' -l '%s'"
         flags = " ".join(flag_vault.get("iverilog", []))
+        # touch parser log file to prevent iverilog error file not found
+        with open(var_vault.PARSER_LOG, "w+") as fp:
+            fp.write("")
         task.actions.append(
-            CmdAction(cmd % (flags, var_vault.EXE, var_vault.SRCS), save_out="log"),
-        )
-        task.actions.append(
-            PythonAction(doit_helper.save_log, (task, var_vault.PARSER_LOG))
+            CmdAction(cmd % (flags, var_vault.EXE, var_vault.SRCS, var_vault.PARSER_LOG)),
         )
 
     return {
@@ -189,14 +185,21 @@ def task_iverilog_sim():
             os.rename("./dump.%s" % wave_format, wave)
 
     def run(task):
-        cmd = "vvp -i %s %s -%s"
+        # touch sim log file to prevent vvp error file not found
+        with open(var_vault.SIM_LOG, "w+") as fp:
+            fp.write("")
+        cmd = "vvp -l '%s' %s %s -i '%s' | relog iverilog"
         task.actions.append(
             CmdAction(
-                cmd % (var_vault.EXE, flag_vault.get("vvp"), var_vault.WAVE_FORMAT),
-                save_out="log",
+                cmd
+                % (
+                    var_vault.SIM_LOG,
+                    " ".join(flag_vault.get("vvp", [])),
+                    var_vault.WAVE_FORMAT if var_vault.WAVE_FORMAT != "vcd" else "",
+                    var_vault.EXE,
+                )
             )
         )
-        task.actions.append(PythonAction(doit_helper.save_log, (task, var_vault.SIM_LOG)))
         task.actions.append(
             PythonAction(move_dump, [var_vault.WAVE, var_vault.WAVE_FORMAT])
         )
@@ -204,7 +207,7 @@ def task_iverilog_sim():
     return {
         "actions": [run],
         "file_dep": [var_vault.EXE],
-        "targets": [var_vault.WAVE, var_vault.SIM_LOG],
+        "targets": [var_vault.WAVE],
         "title": doit_helper.task_name_as_title,
         "clean": [doit_helper.clean_targets],
         "verbosity": 2,

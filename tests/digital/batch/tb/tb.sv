@@ -1,8 +1,6 @@
 
 `timescale 1ns/10ps
 
-`include "log.svh"
-
 module tb;
 
     parameter PERIOD = 31.25; // 32 MHz
@@ -21,8 +19,8 @@ module tb;
     initial begin
         #(PERIOD*100);
         clk_period = $realtime/100;
-        `log_NoteF1("Clock period is %0.3f ns", clk_period);
-        `log_Terminate;
+        $info("Clock period is %0.3f ns", clk_period);
+        $finish;
     end
 
 endmodule

@@ -33,9 +33,12 @@ def generate_cmd(files, params):
     # fill mako template
     ext = var_vault.EXTENSIONS.get(var_vault.FORMAT)
     top = params.get("SYNTH_MODULE")[-1]
+    libs = config.vault.get("yosys", {}).get(
+        "libs", [f"{os.environ['REFLOW']}/packages/dcells/ltspice/dcells.lib"]
+    )
     data = {
         "top_module": top,
-        "techno": evaluate_bash_var(os.environ["TECH_LIB"]),
+        "techno": libs[-1],
         "files": files,
         "params": params,
         "includes": read_sources.resolve_includes(files),
@@ -51,13 +54,13 @@ def generate_cmd(files, params):
 
 
 def update_vars():
-    var_vault.WORK_DIR = utils.get_tmp_folder()
+    var_vault.WORK_DIR = utils.get_tmp_folder("synth")
     var_vault.PROJECT_DIR = os.getenv("PROJECT_DIR")
     var_vault.SYNTH_SCRIPT = utils.normpath(
         os.path.join(var_vault.WORK_DIR, "synthesis.ys")
     )
     var_vault.SYNTH_LOG = utils.normpath(os.path.join(var_vault.WORK_DIR, "synthesis.log"))
-    var_vault.IGNORED = ["packages/log.vh"]
+    var_vault.IGNORED = []
     var_vault.EXTENSIONS = {"verilog": "v", "spice": "sp"}
     var_vault.TOOLS_DIR = utils.normpath(os.path.dirname(os.path.abspath(__file__)))
     var_vault.TEMPLATE_SCRIPT = utils.normpath(
@@ -81,7 +84,7 @@ def task__yosys_synth_prepare():
     update_vars()
 
     def run(task):
-        files, params = read_sources.read_from(os.getenv("CURRENT_DIR"), no_logger=False)
+        files, params = read_sources.read_from(os.getenv("CURRENT_DIR"))
         task.file_dep.update([f for f, m in files])
         task.actions.append(PythonAction(generate_cmd, [files, params]))
 
@@ -98,8 +101,10 @@ def task_yosys_synth():
 
     return {
         "actions": [
-            CmdAction("yosys %s" % var_vault.SYNTH_SCRIPT, save_out="log"),
-            (doit_helper.save_log, (var_vault.SYNTH_LOG,)),
+            CmdAction(
+                "yosys -L '%s' '%s' 2>&1 | relog yosys"
+                % (var_vault.SYNTH_LOG, var_vault.SYNTH_SCRIPT)
+            ),
         ],
         "file_dep": [var_vault.SYNTH_SCRIPT],
         "targets": [var_vault.SYNTH_LOG],

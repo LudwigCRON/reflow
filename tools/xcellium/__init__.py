@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
+# coding: utf-8
+
 import os
 import sys
 
 sys.path.append(os.environ["REFLOW"])
 
+import common.config
 import common.utils as utils
-import common.relog as relog
-import common.executor as executor
 
 from itertools import chain
-from common.read_config import Config
 from common.read_sources import resolve_includes
 
 TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -42,7 +42,6 @@ def transform_flags(flags: str) -> str:
 
 
 def prepare(files, params):
-    relog.step("Listing files")
     # create the list of sources
     INCLUDE_DIRS = resolve_includes(files)
     CURRENT_DIR = os.getcwd()
@@ -92,7 +91,6 @@ def run_sim(files, params):
     gen = prepare(files, params)
     flags = " ".join(chain([gen], Config.ncsim.get("flags").split()))
     # run simulation
-    relog.step("Running simulation")
     executor.sh_exec("xrun %s -f %s" % (flags, SRCS), PARSER_LOG, MAX_TIMEOUT=300)
 
 
@@ -109,9 +107,3 @@ def run_lint(files, params):
     flags = " ".join(chain([gen, "-hal"], Config.ncsim.get("flags").split()))
     # lint
     executor.sh_exec("xrun %s -f %s" % (flags, SRCS), PARSER_LOG, MAX_TIMEOUT=300)
-
-
-if __name__ == "__main__":
-    # create the list of sources
-    PARAMS, MIMES, FILES = utils.get_sources(relog.filter_stream(sys.stdin), None)
-    run_sim(FILES, PARAMS)

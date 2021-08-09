@@ -1,0 +1,96 @@
+#!/usr/bin/env python3
+# coding: utf-8
+
+import os
+import re
+import sys
+import argparse
+
+# assume the run utility is placed in the envs/bin/ directory
+ENVBIN_DIR = os.path.dirname(os.path.realpath(__file__))
+# define the path where is stored the flow
+REFLOW_DIR = os.environ["REFLOW"]
+sys.path.append(REFLOW_DIR)
+
+import common.config
+import common.utils as utils
+
+
+def filter_stream(rules: dict = {}):
+    needed_buffer = max([rule.get("buffer", 1) for rule in rules.values()])
+    counts = {rule: 0 for rule in rules}
+    should_stop = False
+    buffer = []
+    for line in sys.stdin:
+        buffer.append(line)
+        replaced = False
+        if len(buffer) == needed_buffer:
+            for type, rule in rules.items():
+                matches = re.finditer(
+                    rule.get("regex", ""), "".join(buffer), re.MULTILINE | re.DOTALL
+                )
+                for match in matches:
+                    # get results and add rule name as type
+                    res = match.groupdict()
+                    res["type"] = type.upper()
+                    # clean up spurious '\n' or spaces
+                    for k, v in res.items():
+                        res[k] = v.strip()
+                    s = rule.get("format", "").format(**res)
+                    # erase previous printed line use in the buffer
+                    print("\033[F\033[K" * (rule.get("buffer", 1) - 1), end="")
+                    print(s)
+                    replaced = True
+                    # increment counters
+                    counts[type] += 1
+                    limit = rule.get("limit", 10000)
+                    if counts[type] > limit:
+                        print(f"Exceeded maximum number of {type.upper()} (max: {limit})")
+                        should_stop = True
+                        break
+            if should_stop:
+                break
+            buffer = buffer[1:]
+        if not replaced:
+            print(line, end="")
+    # print a small summary
+    print("==== Summary ====")
+    print("simulation done with")
+    max_len_type = max([len(type) for type in counts])
+    for type in counts:
+        nb_spaces = max_len_type - len(type) + 1
+        print(f"{type.upper()}:{' '*nb_spaces}{counts[type]}")
+
+
+def main():
+    default_db_path = utils.normpath(os.path.join(REFLOW_DIR, "relog.db"))
+    # get tools name from cli arguments
+    parser = argparse.ArgumentParser(description="Reformatting Log Tool (ReLog)")
+    parser.add_argument("toolname", help="name of the tool", default="")
+    parser.add_argument(
+        "task_id", help="task identifier in database", default="", nargs="?"
+    )
+    parser.add_argument(
+        "db", help="path to the db to store info", default=default_db_path, nargs="?"
+    )
+    cli_args = parser.parse_args()
+    # find project yaml to load tools paths
+    common.config.load_config(
+        utils.normpath(os.path.join(REFLOW_DIR, "tools")), os.getcwd()
+    )
+    # load the selected tool's config
+    for tools_path in common.config.vault.get("tools_paths", []):
+        common.config.load_tool_config(
+            cli_args.toolname, f"{tools_path}/{cli_args.toolname}"
+        )
+    # get relog regex and format instructions
+    tool_config = common.config.vault.get(cli_args.toolname)
+    if "relog" not in tool_config:
+        print("No filtering instructions")
+
+    rules = tool_config.get("relog")
+    filter_stream(rules)
+
+
+if __name__ == "__main__":
+    main()

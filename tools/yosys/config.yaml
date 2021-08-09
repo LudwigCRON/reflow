@@ -1,1 +1,8 @@
 format: spice
+relog:
+  warning:
+    regex: "(?:Warning|WARNING):\\s*(?P<msg>.+?)$"
+    format: "\e[1;33m{type}: {msg}\e[0m"
+  error:
+    regex: "ERROR:\\s*(?P<msg>.+?)$"
+    format: "\e[1;31m{type}: {msg}\e[0m"

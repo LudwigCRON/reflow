@@ -36,7 +36,7 @@ def task__ltspice_sim_prepare():
 
     def run(task):
         # get the top asc file
-        files, params = read_sources.read_from(os.getenv("CURRENT_DIR"), no_logger=True)
+        files, params = read_sources.read_from(os.getenv("CURRENT_DIR"))
         task.file_dep.update([f for f, _ in files])
         var_vault.ASC = utils.normpath(params.get("TOP_MODULE"))
         if not var_vault.ASC:

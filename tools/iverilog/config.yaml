@@ -8,4 +8,21 @@ flags:
 - -Wselect-range
 - -Wsensitivity-entire-array
 format: vcd
-reflow_log: True
+relog:
+  fatal:
+    regex: "FATAL:(?:[^:]*):\\d+:(?P<msg>.+?)(?=[Tt]ime:)[Tt]ime:\\s*(?P<time>.+?)(?=[Ss]cope)[Ss]cope:\\s*(?P<scope>[\\w.-]+)"
+    format: "\e[1;31m[{time}]\t{type}: {msg}\e[0m"
+    buffer: 2
+  error:
+    regex: "ERROR:(?:[^:]*):\\d+:(?P<msg>.+?)(?=[Tt]ime:)[Tt]ime:\\s*(?P<time>.+?)(?=[Ss]cope)[Ss]cope:\\s*(?P<scope>[\\w.-]+)"
+    format: "\e[1;31m[{time}]\t{type}: {msg}\e[0m"
+    buffer: 2
+    limit: 100
+  warning:
+    regex: "WARNING:(?:[^:]*):\\d+:(?P<msg>.+?)(?=[Tt]ime:)[Tt]ime:\\s*(?P<time>.+?)(?=[Ss]cope)[Ss]cope:\\s*(?P<scope>[\\w.-]+)"
+    format: "\e[1;33m[{time}]\t{type}: {msg}\e[0m"
+    buffer: 2
+  info:
+    regex: "INFO:(?:[^:]*):\\d+:(?P<msg>.+?)(?=[Tt]ime:)[Tt]ime:\\s*(?P<time>.+?)(?=[Ss]cope)[Ss]cope:\\s*(?P<scope>[\\w.-]+)"
+    format: "\e[1;37m[{time}]\t{type}: {msg}\e[0m"
+    buffer: 2

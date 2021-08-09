@@ -1,7 +1,5 @@
 `timescale 1ns/100ps
 
-`include "log.svh"
-
 module tb;
 
 parameter TCLK = 32;
@@ -30,7 +28,7 @@ begin: test
         run_check = 1'b1;
         #(1ns);
     end
-    `log_Terminate;
+    $finish;
 end
 
 //======== DUTS ========
@@ -58,8 +56,8 @@ assign s_ref = a + b;
 
 always @(posedge run_check)
 begin: sum_check
-    if (s_rca != s_ref) `log_Error("Wrong ripple-carry-adder sum result");
-    if (s_cla != s_ref) `log_Error("Wrong carry-lookahead-adder sum result");
+    if (s_rca != s_ref) $error("Wrong ripple-carry-adder sum result");
+    if (s_cla != s_ref) $error("Wrong carry-lookahead-adder sum result");
 end
 
 

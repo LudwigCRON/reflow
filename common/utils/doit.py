@@ -27,29 +27,35 @@ class TaskNumber(ConsoleReporter):
         self.nb_steps = len(self.steps)
         self.last_is_subtask = False
 
-    def display_step(self, task):
+    def display_step(self, task, skipped: bool = False):
         title = task.title()
+        skipped_text = "(skipped)" if skipped else ""
         if title and title[0] != "_":
             if task.name in self.steps:
                 self.current_step = self.nb_steps - self.steps.index(task.name)
                 self.outstream.write(
-                    "[%d/%d] %s\n" % (self.current_step, self.nb_steps, title)
+                    "[%d/%d] %s %s\n"
+                    % (self.current_step, self.nb_steps, title, skipped_text)
                 )
                 self.last_is_subtask = False
             elif self.last_is_subtask:
                 self.current_step += 1
-                self.outstream.write("[-/%d] %s\n" % (self.current_step, title))
+                self.outstream.write(
+                    "[-/%d] %s %s\n" % (self.current_step, title, skipped_text)
+                )
                 self.last_is_subtask = True
             else:
                 self.current_step = 1
-                self.outstream.write("[-/%d] %s\n" % (self.current_step, title))
+                self.outstream.write(
+                    "[-/%d] %s %s\n" % (self.current_step, title, skipped_text)
+                )
                 self.last_is_subtask = True
 
     def execute_task(self, task):
         self.display_step(task)
 
     def skip_uptodate(self, task):
-        self.display_step(task)
+        self.display_step(task, skipped=True)
 
 
 DOIT_CONFIG = {
@@ -89,11 +95,3 @@ def clean_targets(task, dryrun):
             )
             if op:
                 op(tgt)
-
-
-def save_log(task, log_path: str):
-    if task is None:
-        return
-    with open(log_path, "w+") as fp:
-        for line in relog.filter_stream(task.values.get("log")):
-            fp.write(line + "\n")

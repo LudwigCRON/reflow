@@ -5,41 +5,12 @@ import sys
 import numpy
 import logging
 
+# ==== logging ====
 logging.basicConfig(
     stream=sys.stdout, level=logging.INFO, format="%(levelname)s: %(message)s"
 )
 
 
-# ==== operational step ====
-class CountCalls(object):
-    instances = {}
-
-    def __init__(self, func):
-        self.func = func
-        self.counter = 0
-        CountCalls.instances[func] = self
-
-    def __call__(self, *args, **kwargs):
-        self.counter += 1
-        return self.func(*args, **kwargs)
-
-    def count(self):
-        return self.counter
-
-    def counts(self, f):
-        return CountCalls.instances[f].counter
-
-
-@CountCalls
-def step(text: str, indent: int = 4):
-    c = step.counter
-    spacer = "".join([" "] * (indent - len(str(c)) - 1))
-    sys.stdout.write("\33[1;34m")
-    print("%d.%s%s" % (c, spacer, text))
-    sys.stdout.write("\33[0m")
-
-
-# ==== logging ====
 def info(text: str, *args, **kwargs):
     sys.stdout.write("\33[1;37m")
     logging.info(text, *args, **kwargs)
@@ -90,25 +61,6 @@ def display_log(path: str, SUMMARY: bool = False):
                 warning("Found %d warning(s)" % Warnings)
             else:
                 error("Found %d warning(s) and %d error(s)" % (Warnings, Errors))
-
-
-def get_stats(path: str):
-    """
-    return stats from log file of simulations
-    Number of warnings
-    Number of errors
-    """
-    Warnings, Errors = 0, 0
-    if not os.path.exists(path):
-        return (numpy.nan, numpy.nan)
-    with open(path, "r+") as fp:
-        k = 0
-        for k, l in enumerate(fp.readlines()):
-            if "WARNING" in l:
-                Warnings += 1
-            elif "ERROR" in l:
-                Errors += 1
-    return Warnings, Errors
 
 
 # ==== filters ====

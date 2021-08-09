@@ -112,12 +112,7 @@ def task__covered_cov_score():
 
         def run(task):
             task.actions.append(
-                CmdAction(
-                    "covered score -f %s -o %s" % (str(script), cov_k_db), save_out="log"
-                )
-            )
-            task.actions.append(
-                PythonAction(doit_helper.save_log, (task, var_vault.SCORE_LOG % k))
+                CmdAction("covered score -f %s -o %s" % (str(script), cov_k_db))
             )
 
         yield {
@@ -163,12 +158,7 @@ def task_covered_cov():
 
     def run(task):
         cov_db = var_vault.COV_DATABASE.replace(".cdd", "_0.cdd")
-        task.actions.append(
-            CmdAction("covered report -m ltcfram -d s %s" % cov_db, save_out="log")
-        )
-        task.actions.append(
-            PythonAction(doit_helper.save_log, (task, var_vault.COV_REPORT))
-        )
+        task.actions.append(CmdAction("covered report -m ltcfram -d s %s" % cov_db))
 
     return {
         "actions": [run],

@@ -1,7 +1,5 @@
 `timescale 1ns/10ps
 
-`include "log.svh"
-
 module tb;
 
 reg         f100m_clk;
@@ -34,17 +32,17 @@ end
 
 // reset generation
 initial begin
-    `log_Note("Simulation initiated");
+    $info("Simulation initiated");
     rstb = 1'b0;
     #50 rstb = 1'b1;
-    `log_Warning("reset released");
+    $warning("reset released");
 end
 
 always @(posedge f100m_clk) begin
     if(vin > 1.005) begin
         rstb <= 1'b0;
         #50;
-        `log_Terminate;
+        $finish;
     end
 end
 

@@ -1,16 +1,13 @@
 #!/usr/bin/env python3
 
 import os
-import sys
 import shlex
-import traceback
 
 from enum import Enum
 from collections import defaultdict, Iterable
 from typing import OrderedDict
 
 import common.rules
-import common.relog as relog
 import common.utils as utils
 import common.verilog as verilog
 
@@ -370,16 +367,12 @@ def read_sources(filepath: str, graph: dict = {}, depth: int = 0):
     return ans
 
 
-def read_from(sources_list: str, no_logger: bool = True):
+def read_from(sources_list: str):
     files = []
     parameters = {}
     # check input exist
     if not os.path.exists(sources_list):
         raise Exception("%s does not exist" % sources_list)
-    # add the log package file
-    if not no_logger:
-        log_inc = os.path.join(os.environ["REFLOW"], "packages/log.svh")
-        files.append((log_inc, utils.files.get_type(log_inc)))
     # store the list of files
     graph = {}
     graph = read_sources(sources_list, {})

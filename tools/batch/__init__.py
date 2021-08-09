@@ -29,7 +29,7 @@ def task_tree():
     display hierarchy of the design
     """
     try:
-        files, params = read_sources.read_from(os.getenv("CURRENT_DIR"), no_logger=False)
+        files, params = read_sources.read_from(os.getenv("CURRENT_DIR"))
         return {
             "actions": [(design_tree.main, [files, params])],
             "title": doit_helper.task_name_as_title,
