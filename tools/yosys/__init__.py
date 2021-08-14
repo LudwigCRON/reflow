@@ -98,14 +98,18 @@ def task__yosys_synth_prepare():
 
 
 def task_yosys_synth():
+    def run(task):
+        # extract task info for relog db storage
+        task_name, test_path = utils.get_task_dbinfo(task)
+        task.actions.append(
+            CmdAction(
+                "yosys -L '%s' '%s' 2>&1 | relog yosys %s:%s"
+                % (var_vault.SYNTH_LOG, var_vault.SYNTH_SCRIPT, task_name, test_path)
+            )
+        )
 
     return {
-        "actions": [
-            CmdAction(
-                "yosys -L '%s' '%s' 2>&1 | relog yosys"
-                % (var_vault.SYNTH_LOG, var_vault.SYNTH_SCRIPT)
-            ),
-        ],
+        "actions": [run],
         "file_dep": [var_vault.SYNTH_SCRIPT],
         "targets": [var_vault.SYNTH_LOG],
         "title": doit_helper.task_name_as_title,

@@ -6,10 +6,23 @@ import shutil
 import datetime
 
 from pathlib import Path
+from typing import Tuple
 
 
 def normpath(s: str):
     return os.path.normpath(os.path.abspath(s)).replace("\\", "/")
+
+
+def get_task_dbinfo(task) -> Tuple[str, str]:
+    # extract task info to store them in db
+    if ":" in task.name:
+        task_name, test_path = task.name.split(":")[-2:]
+    else:
+        test_path = os.path.join(
+            os.getenv("BATCH_DIR", ""), os.path.basename(os.getenv("CURRENT_DIR", ""))
+        )
+        task_name = task.name
+    return task_name, test_path
 
 
 # ==== get working directory ====
@@ -19,6 +32,11 @@ def get_tmp_folder(type: str = "sim") -> str:
     simulation type or use the specified working
     directory via WORK_DIR env. variable
     """
+    # to support batch reformat <dir of batch>:<task>:<subdir>
+    # into <dir of batch>/<subdir>
+    if ":" in type:
+        batch_dir, _, subdir = type.split(":", maxsplit=3)
+        type = f"{batch_dir}/{subdir}"
     if "WORK_DIR" in os.environ:
         return normpath(os.environ["WORK_DIR"])
     if "WORK_DIR_PREFIX" in os.environ:
@@ -28,21 +46,12 @@ def get_tmp_folder(type: str = "sim") -> str:
     return normpath(os.path.join(os.getcwd(), ".tmp_%s" % type))
 
 
-def get_tmp_folder_name(type: str = "sim", prefix: str = "") -> str:
-    """
-    get folder name for a given simulation type
-    """
-    if "WORK_DIR_PREFIX" in os.environ:
-        return "%s%s_%s" % (prefix, os.environ["WORK_DIR_PREFIX"], type)
-    return "%s.tmp_%s" % (prefix, type)
-
-
-def create_working_dir(suffix: str):
+def create_working_dir(type: str):
     """
     create the working directory for the selected task
     given as a suffix after the WORK_DIR_PREFIX (by default .tmp_)
     """
-    os.environ["WORK_DIR"] = normpath(get_tmp_folder_name(suffix, "./"))
+    os.environ["WORK_DIR"] = get_tmp_folder(type)
     os.makedirs(os.environ["WORK_DIR"], exist_ok=True)
 
 

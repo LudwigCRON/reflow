@@ -1,6 +1,7 @@
 work_dir_prefix: ".work"
 tools:
 - batch
+- report
 - iverilog
 - yosys
 - covered

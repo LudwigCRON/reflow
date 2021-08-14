@@ -188,7 +188,9 @@ def task_iverilog_sim():
         # touch sim log file to prevent vvp error file not found
         with open(var_vault.SIM_LOG, "w+") as fp:
             fp.write("")
-        cmd = "vvp -l '%s' %s %s -i '%s' | relog iverilog"
+        # extract task info for relog db storage
+        task_name, test_path = utils.get_task_dbinfo(task)
+        cmd = "vvp -l '%s' %s %s -i '%s' | relog iverilog %s:%s"
         task.actions.append(
             CmdAction(
                 cmd
@@ -197,6 +199,8 @@ def task_iverilog_sim():
                     " ".join(flag_vault.get("vvp", [])),
                     var_vault.WAVE_FORMAT if var_vault.WAVE_FORMAT != "vcd" else "",
                     var_vault.EXE,
+                    task_name,
+                    test_path,
                 )
             )
         )
@@ -209,7 +213,10 @@ def task_iverilog_sim():
         "file_dep": [var_vault.EXE],
         "targets": [var_vault.WAVE],
         "title": doit_helper.task_name_as_title,
-        "clean": [doit_helper.clean_targets],
+        "clean": [
+            doit_helper.clean_targets,
+            CmdAction("relog clean", env=os.environ.copy()),
+        ],
         "verbosity": 2,
     }
 

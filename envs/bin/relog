@@ -12,11 +12,14 @@ ENVBIN_DIR = os.path.dirname(os.path.realpath(__file__))
 REFLOW_DIR = os.environ["REFLOW"]
 sys.path.append(REFLOW_DIR)
 
+import common.relog
 import common.config
 import common.utils as utils
 
 
-def filter_stream(rules: dict = {}):
+def filter_stream(
+    rules: dict = {}, current_task: utils.doit.RelogTask = None, db_path: str = ""
+):
     needed_buffer = max([rule.get("buffer", 1) for rule in rules.values()])
     counts = {rule: 0 for rule in rules}
     should_stop = False
@@ -41,11 +44,21 @@ def filter_stream(rules: dict = {}):
                     print("\033[F\033[K" * (rule.get("buffer", 1) - 1), end="")
                     print(s)
                     replaced = True
-                    # increment counters
+                    # increment counters and register in db
                     counts[type] += 1
+                    if db_path and "warn" in type.lower():
+                        current_task.warning(s, db_path)
+                    elif db_path and "err" in type.lower():
+                        current_task.error(s, db_path)
+                    elif db_path and "fat" in type.lower():
+                        current_task.fatal(s, db_path)
+                    # check limit
                     limit = rule.get("limit", 10000)
                     if counts[type] > limit:
-                        print(f"Exceeded maximum number of {type.upper()} (max: {limit})")
+                        msg = f"Exceeded maximum number of {type.upper()} (max: {limit})"
+                        print(msg)
+                        if db_path:
+                            current_task.fatal(msg, db_path)
                         should_stop = True
                         break
             if should_stop:
@@ -63,17 +76,23 @@ def filter_stream(rules: dict = {}):
 
 
 def main():
-    default_db_path = utils.normpath(os.path.join(REFLOW_DIR, "relog.db"))
+    # define db path
+    default_db_path = common.relog.get_relog_dbpath()
     # get tools name from cli arguments
     parser = argparse.ArgumentParser(description="Reformatting Log Tool (ReLog)")
     parser.add_argument("toolname", help="name of the tool", default="")
     parser.add_argument(
-        "task_id", help="task identifier in database", default="", nargs="?"
+        "task_name", help="task identifier in database", default="", nargs="?"
     )
     parser.add_argument(
-        "db", help="path to the db to store info", default=default_db_path, nargs="?"
+        "--db", help="path to the db to store info", default=default_db_path
     )
     cli_args = parser.parse_args()
+    # if ask for cleanning
+    if cli_args.toolname == "clean":
+        if os.path.exists(cli_args.db):
+            os.remove(cli_args.db)
+        exit(0)
     # find project yaml to load tools paths
     common.config.load_config(
         utils.normpath(os.path.join(REFLOW_DIR, "tools")), os.getcwd()
@@ -89,7 +108,11 @@ def main():
         print("No filtering instructions")
 
     rules = tool_config.get("relog")
-    filter_stream(rules)
+    # create default task object to save in db
+    task_name, test_path = cli_args.task_name.split(":")[-2:]
+    current_task = utils.doit.RelogTask(test_path, task_name, 0.0)
+    # detect and filter stdin
+    filter_stream(rules, current_task, cli_args.db)
 
 
 if __name__ == "__main__":

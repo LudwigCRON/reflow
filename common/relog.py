@@ -2,8 +2,8 @@ import io
 import os
 import re
 import sys
-import numpy
 import logging
+import common.utils
 
 # ==== logging ====
 logging.basicConfig(
@@ -67,8 +67,9 @@ def display_log(path: str, SUMMARY: bool = False):
 def _filter_color(i):
     PATTERN = r"\[\d?;?\d{1,2}m"
     if isinstance(i, str):
-        return re.sub(PATTERN, "", i)
-    _s = i.replace(b"\033", b"").decode("utf-8")
+        return re.sub(PATTERN, "", i.replace("\x1b", ""))
+    print(i)
+    _s = i.decode("utf-8").replace("\x1b", "")
     ans = re.sub(PATTERN, "", _s)
     return ans
 
@@ -85,3 +86,16 @@ def filter_stream(i):
         lines = i.split(b"\n")
     for line in lines:
         yield _filter_color(line)
+
+
+def get_relog_dbpath():
+    # in a project there is 1 single file at the top
+    default_db_path = os.getenv("PROJECT_DIR", "")
+    # other in batch use the top most path
+    if not default_db_path:
+        default_db_path = os.getenv("TOP_BATCH_DIR", "")
+    # for a single run use the local dir
+    if not default_db_path:
+        default_db_path = os.getenv("CURRENT_DIR", "")
+    default_db_path = common.utils.normpath(os.path.join(default_db_path, "relog.db"))
+    return default_db_path

@@ -14,10 +14,7 @@ import common.read_batch as read_batch
 import common.design_tree as design_tree
 import common.read_sources as read_sources
 
-
-from doit import create_after
-from doit.task import dict_to_task
-from doit.action import CmdAction, PythonAction
+from doit.action import CmdAction
 from common.utils.db import Vault
 
 
@@ -57,6 +54,7 @@ def batch(batch_path: str):
         sim_dir = utils.normpath(
             os.path.join(os.getenv("CURRENT_DIR"), work_item.get("__path__"))
         )
+        test_path = os.path.join(os.getenv("BATCH_DIR", ""), work_item.get("__path__"))
         batch_path = utils.normpath(os.path.join(sim_dir, "Batch.list"))
         src_path = utils.normpath(os.path.join(target_dir, "Sources.list"))
         os.makedirs(target_dir, exist_ok=True)
@@ -71,6 +69,10 @@ def batch(batch_path: str):
             batch_options.append("lint")
         # run the simulations in an isolated env
         sim_env = os.environ.copy()
+        sim_env["TOP_BATCH_DIR"] = os.getenv(
+            "TOP_BATCH_DIR", os.getenv("BATCH_DIR", os.getenv("CURRENT_DIR"))
+        )
+        sim_env["BATCH_DIR"] = test_path
         for batch_option in batch_options:
             if os.path.exists(batch_path):
                 # support batch of batch
@@ -89,7 +91,10 @@ def batch(batch_path: str):
                 ],
                 "title": doit_helper.task_name_as_title,
                 "file_dep": file_dep,
-                "clean": [CmdAction("run clean", cwd=target_dir, env=sim_env)],
+                "clean": [
+                    CmdAction("run clean", cwd=target_dir, env=sim_env),
+                    CmdAction("relog clean", cwd=target_dir, env=sim_env),
+                ],
                 "verbosity": 2,
             }
 

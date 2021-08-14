@@ -2,6 +2,7 @@ project:
   name: platform
 tools:
 - batch
+- report
 - iverilog
 - covered
 - gtkwave
