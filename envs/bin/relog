@@ -4,6 +4,7 @@
 import os
 import re
 import sys
+import time
 import argparse
 
 # assume the run utility is placed in the envs/bin/ directory
@@ -17,14 +18,36 @@ import common.config
 import common.utils as utils
 
 
+def living_log_stream(filepath: str, stop_keyword: str):
+    if not os.path.exists(filepath):
+        return None
+    with open(filepath, "rt") as fp:
+        should_stop = False
+        while not should_stop:
+            line = fp.readline()
+            if not line:
+                time.sleep(1)
+                continue
+            should_stop = stop_keyword in line
+            yield line
+
+
+def static_log_stream(filepath: str):
+    if not os.path.exists(filepath):
+        return None
+    with open(filepath, "rt") as fp:
+        for line in fp:
+            yield line
+
+
 def filter_stream(
-    rules: dict = {}, current_task: utils.doit.RelogTask = None, db_path: str = ""
+    stream, rules: dict = {}, current_task: utils.doit.RelogTask = None, db_path: str = ""
 ):
     needed_buffer = max([rule.get("buffer", 1) for rule in rules.values()])
     counts = {rule: 0 for rule in rules}
     should_stop = False
     buffer = []
-    for line in sys.stdin:
+    for line in stream:
         buffer.append(line)
         replaced = False
         if len(buffer) == needed_buffer:
@@ -87,6 +110,10 @@ def main():
     parser.add_argument(
         "--db", help="path to the db to store info", default=default_db_path
     )
+    parser.add_argument(
+        "-l", "--log", help="path to the log file to be analyzed", default=None
+    )
+    parser.add_argument("-s", "--stop", help="keyword for stopping parsing", default=None)
     cli_args = parser.parse_args()
     # if ask for cleanning
     if cli_args.toolname == "clean":
@@ -111,8 +138,13 @@ def main():
     # create default task object to save in db
     task_name, test_path = cli_args.task_name.split(":")[-2:]
     current_task = utils.doit.RelogTask(test_path, task_name, 0.0)
-    # detect and filter stdin
-    filter_stream(rules, current_task, cli_args.db)
+    # detect and filter stdin/living log file/static log file
+    stream = sys.stdin
+    if cli_args.log is not None and cli_args.stop is not None:
+        stream = living_log_stream(cli_args.log, cli_args.stop)
+    elif cli_args.log is not None:
+        stream = static_log_stream(cli_args.log)
+    filter_stream(stream, rules, current_task, cli_args.db)
 
 
 if __name__ == "__main__":

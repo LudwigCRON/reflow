@@ -1,1 +1,9 @@
 format: raw
+relog:
+  error:
+    regex: "ERROR:(?P<msg>[^\n]*)"
+    format: "\e[1;31m\t{type}: {msg}\e[0m"
+    limit: 100
+  warning:
+    regex: "WARNING:(?P<msg>[^\n]*)"
+    format: "\e[1;33m\t{type}: {msg}\e[0m"

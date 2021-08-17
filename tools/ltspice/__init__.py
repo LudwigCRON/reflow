@@ -44,6 +44,7 @@ def task__ltspice_sim_prepare():
                 (str(file) for file, _ in files if file.endswith(".asc") and "top" in file)
             )
             var_vault.ASC = utils.normpath(os.path.join(os.getenv("CURRENT_DIR"), sfile))
+        var_vault.LOG = var_vault.ASC.replace(".asc", ".log")
         # add post sim script support
         var_vault.POST_SIM = params.get("POST_SIM")
         # use the appropriate program
@@ -78,11 +79,13 @@ def task_ltspice_sim():
         asc_path = var_vault.ASC
         if task.options.get("asc"):
             asc_path = task.options.get("asc").strip()
+        task_name, test_path = utils.get_task_dbinfo(task)
         task.file_dep.update([var_vault.ASC])
-        task.targets.append(var_vault.ASC.replace(".asc", ".log"))
+        task.targets.append(var_vault.LOG)
         task.actions.append(
             CmdAction(
-                '%s -b -Run "%s"' % (var_vault.LTSPICE, asc_path),
+                '%s -b -Run "%s" | relog -l "%s" -s "Total elapsed time:" ltspice %s:%s'
+                % (var_vault.LTSPICE, asc_path, var_vault.LOG, task_name, test_path),
                 cwd=var_vault.WORK_DIR,
                 shell=True,
             )
