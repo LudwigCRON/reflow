@@ -2,42 +2,19 @@
 # coding: utf-8
 
 import os
-import sys
 
 from functools import lru_cache
 from typing import List
 
 import common.utils as utils
-import common.relog as relog
 import common.utils.doit as doit_helper
 import common.read_batch as read_batch
-import common.design_tree as design_tree
-import common.read_sources as read_sources
 
 from doit.action import CmdAction
 from common.utils.db import Vault
 
 
 var_vault = Vault()
-
-
-def task_tree():
-    """
-    display hierarchy of the design
-    """
-    try:
-        files, params = read_sources.read_from(os.getenv("CURRENT_DIR"))
-        return {
-            "actions": [(design_tree.main, [files, params])],
-            "title": doit_helper.task_name_as_title,
-            "verbosity": 2,
-        }
-    except FileNotFoundError as e:
-        # do not print error if cleaning/batch/list/...
-        if "tree" in sys.argv:
-            relog.error("'%s' not found" % (e.filename or e.filename2))
-            exit(1)
-        return {"actions": None}
 
 
 @lru_cache(maxsize=8)

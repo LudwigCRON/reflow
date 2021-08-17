@@ -3,7 +3,6 @@
 
 import os
 import sys
-from tools.batch import task_tree
 import common.utils as utils
 import common.config as config
 
