@@ -195,6 +195,7 @@ class TaskNumber(ConsoleReporter):
     def add_failure(self, task, exception):
         """called when execution finishes with a failure"""
         if self.current_task is not None:
+            self.current_task.fatal(exception.get_msg(), self.db_path)
             self.current_task.load(self.db_path)
             self.current_task.end_time = time.clock_gettime(0)
             self.current_task.save(self.db_path)

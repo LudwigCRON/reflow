@@ -30,44 +30,64 @@ def task__report_fetch():
         with sqlite3.connect(db_path) as con:
             con.row_factory = utils.db.sqlite_dict_factory
             c = con.cursor()
-            # get executed tasks of type t and their duration
+            # get groups and total time
             c.execute(
                 (
                     "SELECT "
-                    "    test_path, "
-                    "    GROUP_CONCAT(task_name, ';') as task_names, "
-                    "    GROUP_CONCAT(time(end_time-start_time, 'unixepoch'),';') as elapsed_times, "
-                    "    GROUP_CONCAT(aborted,';') as aborteds, "
-                    "    GROUP_CONCAT(skipped,';') as skippeds "
+                    "    substr(test_path, 0, instr(test_path, '/')) as group_name, "
+                    "    time(sum(end_time-start_time), 'unixepoch') as elapsed_time "
                     "FROM tasks "
-                    f"WHERE task_name IN ('{sep.join(types)}') "
-                    "GROUP BY test_path"
+                    f"WHERE (task_name IN ('{sep.join(types)}')) "
+                    "GROUP BY substr(test_path, 0, instr(test_path, '/')) "
                 )
             )
             for row in c.fetchall():
-                test_path = row["test_path"]
-                tmp_vault.set(test_path, [])
-                groups = zip(
-                    row["task_names"].split(";"),
-                    row["elapsed_times"].split(";"),
-                    row["aborteds"].split(";"),
-                    row["skippeds"].split(";"),
+                vault_grp = utils.db.Vault({"elapsed_time": row["elapsed_time"]})
+                for type in types:
+                    vault_grp.set(type, [])
+                tmp_vault.set(row["group_name"], vault_grp)
+            # get executed tasks of type t and their duration
+            c.execute(
+                (
+                    "SELECT  "
+                    "    substr(test_path, 0, instr(test_path, '/')) as group_name, "
+                    "    task_name, "
+                    "    test_path, "
+                    "    time(end_time-start_time, 'unixepoch') as elapsed_time, "
+                    "    aborted, "
+                    "    skipped "
+                    "FROM tasks  "
+                    f"WHERE task_name IN ('{sep.join(types)}') "
+                    "ORDER BY test_path, task_name "
                 )
-                for group in groups:
-                    tdb = utils.db.Vault(
-                        dict(
-                            zip(["task_name", "elapsed_time", "aborted", "skipped"], group)
+            )
+            for row in c.fetchall():
+                vault_grp = tmp_vault.get(row["group_name"])
+                vault_task = vault_grp.get(row["task_name"])
+                vault_task.append(
+                    utils.db.Vault(
+                        {
+                            "test_path": row["test_path"],
+                            "elapsed_time": row["elapsed_time"],
+                            "aborted": row["aborted"],
+                            "skipped": row["skipped"],
+                        }
+                    )
+                )
+            # get number of warning/errors/fatal
+            for group in tmp_vault:
+                for task in types:
+                    for test in tmp_vault.get(group).get(task):
+                        c.execute(
+                            (
+                                "SELECT DISTINCT rule, count(rule) as nb "
+                                f"FROM '{test.test_path}' "
+                                "WHERE task_name LIKE ?"
+                            ),
+                            [task],
                         )
-                    )
-                    tmp_vault.get(test_path).append(tdb)
-            for test_path in tmp_vault:
-                for task in tmp_vault.get(test_path):
-                    # get number of warning/errors/fatal
-                    c.execute(
-                        f"SELECT DISTINCT rule, count(rule) as nb FROM '{test_path}' GROUP BY rule;"
-                    )
-                    for row in c.fetchall():
-                        task.set(row["rule"], row["nb"])
+                        for row in c.fetchall():
+                            test.set(row["rule"], row["nb"])
 
     return {
         "actions": [run],
@@ -85,37 +105,12 @@ def task__report_html():
     generate an html report of executed tasks
     """
 
-    def get_groups(paths: dict) -> dict:
-        ans = defaultdict(list)
-        # support batch and single sim
-        for test_path in paths:
-            if "/" in test_path:
-                prefix, *remainder = test_path.split("/")
-                if prefix not in ans:
-                    ans[prefix] = defaultdict(list)
-                ans[prefix].update({"/".join(remainder): paths.get(test_path)})
-            else:
-                ans[test_path] = paths.get(test_path)
-        return ans
-
-    def filter_task(prefix: str, filters: dict):
-        for test_path in tmp_vault:
-            if test_path.startswith(prefix):
-                for task in tmp_vault.get(test_path, []):
-                    validations = (c(task.get(k)) for k, c in filters.items())
-                    if all(validations):
-                        yield task
-
     def fill_template(tmpl_path: str, html_path: str):
         try:
             tmpl = Template(filename=tmpl_path)
             with open(html_path, "w+") as fp:
-                fp.write(
-                    tmpl.render(
-                        db=tmp_vault, get_groups=get_groups, filter_task=filter_task
-                    )
-                )
-        except:
+                fp.write(tmpl.render(db=tmp_vault))
+        except Exception:
             print(exceptions.text_error_template().render())
 
     def run(task):

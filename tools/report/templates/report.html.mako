@@ -1,6 +1,18 @@
 <%
 import os
 from datetime import datetime
+
+def no_rule_flagged(t, keys: list):
+    return all((t.get(key) is None or t.get(key)==0 for key in keys))
+
+def sanity_class(valid: int, total: int = 100):
+    if total <= 0:
+        return "none"
+    if valid/total > 0.99:
+        return "healthy"
+    if valid/total > 0.95:
+        return "caution"
+    return "bad"
 %>\
 <!DOCTYPE html>
 <html>
@@ -198,60 +210,41 @@ from datetime import datetime
             <th>total time</th>
         </thead>
         <tbody>
-            % for test_path in get_groups(db.__dict__):
-            <% 
-                prefix = test_path.split("/", 2)[0] if "/" in test_path else test_path
-                def select_task(task_name: str):
-                    def _(t):
-                        return t == task_name
-                    return _
-                
-                def no_rule_flagged(t):
-                    if t is None:
-                        return True
-                    return t == 0
-
-                def count_filtered(prefix: str, filters: dict) -> int:
-                    return len(list(filter_task(prefix, filters)))
-                
-                def sanity_class(valid: int, total: int = 100):
-                    if total <= 0:
-                        return "none"
-                    if valid/total > 0.99:
-                        return "healthy"
-                    if valid/total > 0.95:
-                        return "caution"
-                    return "bad"
-                    
-                
-                nb_total_lint = count_filtered(prefix, {"task_name": select_task("lint")})
-                nb_total_sim = count_filtered(prefix, {"task_name": select_task("sim")})
-                nb_total_cov = count_filtered(prefix, {"task_name": select_task("cov")})
-                nb_valid_lint = count_filtered(prefix, {"task_name": select_task("lint"), "ERROR": no_rule_flagged, "FATAL": no_rule_flagged})
-                nb_valid_sim = count_filtered(prefix, {"task_name": select_task("sim"), "ERROR": no_rule_flagged, "FATAL": no_rule_flagged})
-                nb_valid_cov = count_filtered(prefix, {"task_name": select_task("cov"), "ERROR": no_rule_flagged, "FATAL": no_rule_flagged})
-            %>\
+            % for group_name in db:
+            <%
+                group = db.get(group_name)
+                nb_total_lint = len(group.get("lint", []))
+                nb_total_sim  = len(group.get("sim", []))
+                nb_total_cov  = len(group.get("cov", []))
+                nb_valid_lint = len([test for test in group.get("lint", []) if no_rule_flagged(test, ["ERROR", "FATAL", "aborted"])])
+                nb_valid_sim  = len([test for test in group.get("sim", [])  if no_rule_flagged(test, ["ERROR", "FATAL", "aborted"])])
+                nb_valid_cov  = len([test for test in group.get("cov", [])  if no_rule_flagged(test, ["ERROR", "FATAL", "aborted"])])
+            %>
             <tr>
                 <td>
-                    <a href="#${prefix}">
-                        ${prefix}
+                    <a href="#${group_name}">
+                        ${group_name}
                     </a>
                 </td>
                 <td class="sanity-${sanity_class(nb_valid_lint, nb_total_lint)}">${nb_valid_lint}/${nb_total_lint}</td>
                 <td class="sanity-${sanity_class(nb_valid_sim, nb_total_sim)}">${nb_valid_sim}/${nb_total_sim}</td>
                 <td class="sanity-${sanity_class(nb_valid_cov, nb_total_cov)}">${nb_valid_cov}/${nb_total_cov}</td>
-                <td>-</td>
+                <td>${group.get("elapsed_time", "-")}</td>
             </tr>
             % endfor
         </tbody>
     </table>
-    % for test_path, variants in get_groups(db.__dict__).items():
+    % for group_name in db:
     <details class="test_group">
     <summary class="test_group-header">
-    <h2 class="test_group-title">${test_path}</h2>
+    <h2 class="test_group-title">${group_name}</h2>
     </summary>
-    <h3 class="test_group-section-title">lint</h3>
-    % if count_filtered(test_path, {"task_name": select_task("lint")}):
+        % for task_name in db.get(group_name):
+            % if task_name in ["elapsed_time"]:
+            <% continue %>
+            % endif
+    <h3 class="test_group-section-title">${task_name}</h3>
+            % if db.get(group_name).get(task_name, []):
     <table>
         <thead>
             <th></th>
@@ -259,72 +252,19 @@ from datetime import datetime
             <th>Errors</th>
             <th>Elapsed Time</th>
         </thead>
-        % for variant, tasks in variants.items():
-            % for task in tasks:
-                % if task.task_name == "lint":
+                % for task in db.get(group_name).get(task_name):
         <tr>
-            <td>${variant}</td>
+            <td>${task.test_path}</td>
             <td class="sanity-${sanity_class(97 if task.get('WARNING', 0) else 100)}">${task.get("WARNING", 0)}</td>
             <td class="sanity-${sanity_class(0 if task.get('ERROR', 0)+task.get('FATAL', 0) else 100)}">${task.get("ERROR", 0)+task.get("FATAL", 0)}</td>
             <td class="${' '.join(['aborted' if task.aborted else '', 'skipped' if task.skipped else ''])}">${task.elapsed_time}</td>
         </tr>
-                % endif
-            % endfor
-        % endfor
+                % endfor
     </table>
-    % else:
-    No Linting
-    % endif
-    <h3 class="test_group-section-title">simulation</h3>
-    % if count_filtered(test_path, {"task_name": select_task("sim")}):
-    <table>
-        <thead>
-            <th></th>
-            <th>Warnings</th>
-            <th>Errors</th>
-            <th>Elapsed Time</th>
-        </thead>
-        % for variant, tasks in variants.items():
-            % for task in tasks:
-                % if task.task_name == "sim":
-        <tr>
-            <td>${variant}</td>
-            <td class="sanity-${sanity_class(97 if task.get('WARNING', 0) else 100)}">${task.get("WARNING", 0)}</td>
-            <td class="sanity-${sanity_class(0 if task.get('ERROR', 0)+task.get('FATAL', 0) else 100)}">${task.get("ERROR", 0)+task.get("FATAL", 0)}</td>
-            <td class="${' '.join(['aborted' if task.aborted else '', 'skipped' if task.skipped else ''])}">${task.elapsed_time}</td>
-        </tr>
-                % endif
-            % endfor
+            % else:
+    No ${task_name}
+            % endif
         % endfor
-    </table>
-    % else:
-    No Simulations
-    % endif
-    <h3 class="test_group-section-title">code coverage</h3>
-    % if count_filtered(test_path, {"task_name": select_task("cov")}):
-    <table>
-        <thead>
-            <th></th>
-            <th>Warnings</th>
-            <th>Errors</th>
-            <th>Elapsed Time</th>
-        </thead>
-        % for variant, tasks in variants.items():
-            % for task in tasks:
-                % if task.task_name == "cov":
-        <tr>
-            <td>${variant}</td>
-            <td class="sanity-${sanity_class(97 if task.get('WARNING', 0) else 100)}">${task.get("WARNING", 0)}</td>
-            <td class="sanity-${sanity_class(0 if task.get('ERROR', 0)+task.get('FATAL', 0) else 100)}">${task.get("ERROR", 0)+task.get("FATAL", 0)}</td>
-            <td class="${' '.join(['aborted' if task.aborted else '', 'skipped' if task.skipped else ''])}">${task.elapsed_time}</td>
-        </tr>
-                % endif
-            % endfor
-        % endfor
-    </table>
-    % else:
-    No Code coverage
-    % endif
     </details>
     % endfor
 </body>
