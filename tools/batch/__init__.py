@@ -85,7 +85,7 @@ def batch(batch_path: str):
                 file_dep = [src_path]
                 cmd = "run %s"
             yield {
-                "name": "%s:%s/%s" % (batch_option, os.path.basename(sim_dir), section),
+                "name": "%s:%s/%s" % (batch_option, test_path, section),
                 "actions": [
                     CmdAction(cmd % batch_option, cwd=target_dir, env=sim_env),
                 ],
