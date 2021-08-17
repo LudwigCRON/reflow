@@ -237,7 +237,7 @@ def sanity_class(valid: int, total: int = 100):
     % for group_name in db:
     <details class="test_group">
     <summary class="test_group-header">
-    <h2 class="test_group-title">${group_name}</h2>
+    <h2 id="${group_name}" class="test_group-title">${group_name}</h2>
     </summary>
         % for task_name in db.get(group_name):
             % if task_name in ["elapsed_time"]:
