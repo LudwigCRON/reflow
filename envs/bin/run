@@ -22,8 +22,8 @@ DOIT_CONFIG = utils.doit.DOIT_CONFIG
 def set_env_vars(config: utils.db.Vault) -> None:
     # normalize execution path
     current_dir = utils.normpath(os.getcwd())
-    project_name = config.get("project", {}).get("name", "")
-    work_dir_prefix = config.get("work_dir_prefix", ".tmp")
+    project_name = str(config.get("project", {}).get("name", ""))
+    work_dir_prefix = str(config.get("work_dir_prefix", ".tmp"))
     if project_name in current_dir:
         project_dir = current_dir[: current_dir.find(project_name) + len(project_name)]
     else:

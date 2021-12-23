@@ -4,7 +4,8 @@ import os
 import shlex
 
 from enum import Enum
-from collections import defaultdict, Iterable
+from collections import defaultdict
+from collections.abc import Iterable
 from typing import OrderedDict
 
 import common.rules
