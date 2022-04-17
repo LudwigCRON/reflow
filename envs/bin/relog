@@ -51,10 +51,9 @@ def filter_stream(
         buffer.append(line)
         replaced = False
         if len(buffer) == needed_buffer:
+            b = "".join(buffer)
             for type, rule in rules.items():
-                matches = re.finditer(
-                    rule.get("regex", ""), "".join(buffer), re.MULTILINE | re.DOTALL
-                )
+                matches = re.finditer(rule.get("regex", ""), b, re.MULTILINE | re.DOTALL)
                 for match in matches:
                     # get results and add rule name as type
                     res = match.groupdict()
@@ -64,7 +63,7 @@ def filter_stream(
                         res[k] = v.strip()
                     s = rule.get("format", "").format(**res)
                     # erase previous printed line use in the buffer
-                    print("\033[F\033[K" * (rule.get("buffer", 1) - 1), end="")
+                    print("\033[F\033[K" * rule.get("buffer", 1), end="")
                     print(s)
                     replaced = True
                     # increment counters and register in db
