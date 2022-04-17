@@ -223,7 +223,7 @@ def no_title(task):
 
 
 def task_name_as_title(task):
-    return task.name.split(":")[-1].capitalize()
+    return task.name.split("+")[-1].capitalize()
 
 
 def constant_title(s: str):

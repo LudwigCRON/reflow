@@ -55,14 +55,14 @@ def batch(batch_path: str):
                 # support batch of batch
                 target_dir = os.path.dirname(batch_path)
                 file_dep = [batch_path]
-                cmd = "run --continue 'batch:%s:*'"
+                cmd = "run --continue 'batch+%s+*'"
             else:
                 # create Sources.list
                 read_batch.create_batch_sources(batch, section, target_dir)
                 file_dep = [src_path]
                 cmd = "run %s"
             yield {
-                "name": "%s:%s/%s" % (batch_option, test_path, section),
+                "name": "%s+%s+%s" % (batch_option, test_path, section),
                 "actions": [
                     CmdAction(cmd % batch_option, cwd=target_dir, env=sim_env),
                 ],

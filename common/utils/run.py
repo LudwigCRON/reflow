@@ -15,8 +15,8 @@ def normpath(s: str):
 
 def get_task_dbinfo(task) -> Tuple[str, str]:
     # extract task info to store them in db
-    if ":" in task.name:
-        task_name, test_path = task.name.split(":")[-2:]
+    if "+" in task.name:
+        task_name, test_path = task.name.split("+")[-2:]
     else:
         test_path = os.path.join(
             os.getenv("BATCH_DIR", ""), os.path.basename(os.getenv("CURRENT_DIR", ""))
@@ -32,10 +32,10 @@ def get_tmp_folder(type: str = "sim") -> str:
     simulation type or use the specified working
     directory via WORK_DIR env. variable
     """
-    # to support batch reformat <dir of batch>:<task>:<subdir>
+    # to support batch reformat <dir of batch>+<task>+<subdir>
     # into <dir of batch>/<subdir>
-    if ":" in type:
-        batch_dir, _, subdir = type.split(":", maxsplit=3)
+    if "+" in type:
+        batch_dir, _, subdir = type.split("+", maxsplit=3)
         type = f"{batch_dir}/{subdir}"
     if "WORK_DIR" in os.environ:
         return normpath(os.environ["WORK_DIR"])
